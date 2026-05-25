@@ -93,7 +93,7 @@ require __DIR__ . '/../templates/header.php';
         </div>
 
         <div class="mb-4">
-            <label class="form-label">What's missing or wrong? (optional)</label>
+            <label class="form-label">What is missing or wrong? (optional)</label>
             <textarea class="form-control" name="fidelity_feedback" rows="2"></textarea>
         </div>
 

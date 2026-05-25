@@ -24,7 +24,7 @@ require __DIR__ . '/../templates/header.php';
     <p>You have completed the ATLAS study. Your contribution helps us understand how people describe their self-care practices and will inform the design of a citizen-science platform for self-care research.</p>
 
     <h5 class="mt-4">About This Study</h5>
-    <p>The ATLAS project is developing a formal language for everyday self-care — "behavioural genes" that capture what you do, how much, and in what way. Your description is now part of the first seed corpus for this genome of self-care practices.</p>
+    <p>The ATLAS project is developing a formal language for everyday self-care. We describe each practice as a structured combination of three primitives: what you do, how much, and in what way. Your description is now part of the first seed atlas of self-care practices.</p>
 
     <p>In the future, we aim to build an open platform where people can contribute their practices, explore what works for others in similar situations, and collectively build a science of everyday wellbeing.</p>
 

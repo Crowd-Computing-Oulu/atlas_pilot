@@ -41,12 +41,12 @@ require __DIR__ . '/../templates/header.php';
 
     <form method="post">
         <div class="mb-4">
-            <label class="form-label fw-bold">What situation typically leads you to do this practice?</label>
-            <textarea class="form-control" name="context_text" rows="3" placeholder="e.g., After a stressful work day, when I can't sleep, during exam periods..." required></textarea>
+            <label class="form-label fw-bold">In what kind of situation do you typically practice this?</label>
+            <textarea class="form-control" name="context_text" rows="3" placeholder="e.g., After a stressful work day, when I cannot sleep, during exam periods..." required></textarea>
         </div>
 
         <div class="mb-4">
-            <label class="form-label fw-bold">What do you typically notice afterward?</label>
+            <label class="form-label fw-bold">What do you typically achieve as an outcome of this practice?</label>
             <textarea class="form-control" name="outcome_text" rows="3" placeholder="e.g., I feel calmer, my mind is clearer, I sleep better..." required></textarea>
         </div>
 

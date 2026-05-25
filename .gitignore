@@ -21,3 +21,6 @@ CLAUDE.local.md
 # App data and config
 app/data/
 app/config.php
+
+# scholark-1 session log (added by scholark-1)
+.scholark-1/

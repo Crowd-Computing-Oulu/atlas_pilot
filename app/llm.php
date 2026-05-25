@@ -77,7 +77,7 @@ function refine_gene(string $original_description, array $current_gene, string $
 
 The participant originally described a practice they use specifically when feeling stressed or anxious. An initial extraction was made, and now the participant has provided additional detail about the {$targeted_dimension} dimension.
 
-Update the extraction with the new information. Also generate a natural follow-up question for the NEXT weakest dimension (not the one just refined).
+Update the extraction with the new information. Then write a follow-up question targeting the NEXT weakest dimension (any dimension other than the one just refined). The follow-up question is shown verbatim to a research participant in a formal academic study: use complete sentences, formal register, no contractions, and no em-dashes.
 
 Respond ONLY with valid JSON:
 {
@@ -122,9 +122,9 @@ function get_initial_question(array $gene): array {
     }
 
     $questions = [
-        'technique' => "You mentioned your practice but we'd like more detail. Can you describe exactly what you do, including the specific steps or method?",
-        'dosage' => "We'd love to know more about how much you do this. How long does a typical session last, and how often do you do it?",
-        'mode' => "Can you tell us more about how you do this practice? For example, do you do it alone or with others? In a specific place or setting? With any tools or apps?",
+        'technique' => "Could you describe in more detail what you do during this practice? Please include the specific steps or method.",
+        'dosage' => "Could you describe how much you do this practice? In particular, how long does a typical session last, and how often do you do it?",
+        'mode' => "Could you describe how you carry out this practice? For example, do you do it alone or with others, in a specific place or setting, and with any tools or applications?",
     ];
 
     return [

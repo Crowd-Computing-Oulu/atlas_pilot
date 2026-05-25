@@ -36,15 +36,16 @@ Pilot artefacts use these terms consistently. Earlier drafts used "behavioural g
 
 All participants describe a practice they use **specifically when feeling stressed or anxious**, not as part of their general routine. PSS-4 (Cohen & Williamson 1988) administered at intake for sample characterisation only.
 
-### Study Flow (as currently implemented in app; some locked-design changes still pending in code, see Implementation TODOs below)
+### Study Flow (as currently implemented in app)
 
-1. Consent + eligibility (+ PSS-4: TODO)
-2. Practice description (condition-specific prompt)
-3. [Condition 3 only] AI coach refinement, max 2 rounds with confirmation gate (gate: TODO)
-4. Fidelity check: C1/C2 see their raw text back; C3 sees structured practice
-5. Context + outcome (exploratory practice-report fields)
-6. Questionnaire (willingness, interest, feedback)
-7. Debrief + completion code
+1. Consent + eligibility
+2. PSS-4 intake (sample characterisation only, descriptive)
+3. Practice description (condition-specific prompt)
+4. [Condition 3 only] AI coach refinement, max 2 rounds with confirmation gate after each AI extraction
+5. Fidelity check: C1/C2 see their raw text back; C3 sees the structured practice
+6. Context + outcome (exploratory practice-report fields)
+7. Questionnaire (willingness, interest, optional open feedback)
+8. Debrief + completion code
 
 ### Key Measurement: Specificity per Dimension
 
@@ -56,14 +57,10 @@ Released on Zenodo/OSF with the paper. Canonical-technique clustering done exper
 
 ## Implementation TODOs from the locked design
 
-The app and supporting docs still need updates to match the locked design. None are technically blocking but all should ship before Prolific launch:
+Most locked-design code changes have shipped (PSS-4 intake step, C1/C2 stress framing in prompts, C3 confirmation gate with RoundsTaken telemetry, user-facing "practice"/"primitive" terminology in `llm.php` system prompts and `debrief.php` copy). Remaining items:
 
-- `app/steps/input.php`: update C1 and C2 prompt text to include "specifically when you are feeling stressed or anxious".
-- `app/steps/consent.php`: update eligibility text; add PSS-4 either at end of consent or as a new step before input.
-- `app/steps/refinement.php`: add confirmation gate after each AI extraction (Yes-exit / No-refine). Hard cap at 2 refinement rounds. Track RoundsTaken in DB.
-- `app/llm.php`: update system prompt to use "practice" / "primitive" terminology rather than "behavioural gene".
-- (Optional cleanup) Internal variable names (`$gene` → `$practice`), CSS class names (`.gene-card` → `.practice-card`), DB column comments. Schema (`gene_extractions` table) can stay; not user-facing.
-- `paper/paper.tex`: switch venue declaration from CHI '27 to HCOMP '26 and `acmart` document class option from `manuscript` to `sigconf`.
+- `paper/paper.tex`: `acmart` document class is still `manuscript`; switch to `sigconf` before submission. Venue declaration already names HCOMP 2026.
+- (Optional cleanup) Internal symbols retain legacy "gene" terminology: function names (`extract_gene`, `refine_gene`), session/array variables (`$gene_json`, `$_SESSION['current_practice']` partially renamed), CSS classes (`.gene-card`, `.gene-label`, `.gene-value`, `.gene-missing`), and the `gene_extractions` DB table. None are user-facing.
 
 ## Key Files and Folders
 
@@ -76,12 +73,13 @@ app/                        -- PHP web application
   db.php                    -- SQLite connection + schema init
   llm.php                   -- Claude API wrapper (extraction + refinement prompts)
   steps/                    -- One PHP file per study step
-    consent.php             -- Consent + eligibility + condition assignment (PSS-4 TODO)
-    input.php               -- Practice description (locked-prompt update TODO)
-    refinement.php          -- AI coach rounds (confirmation-gate TODO)
-    fidelity.php            -- Review + fidelity Likert scales
-    exploratory.php         -- Context + outcome fields
-    questionnaire.php       -- Final Likert scales + feedback
+    consent.php             -- Consent + eligibility + condition assignment
+    intake.php              -- PSS-4 (4 items, q2/q3 reverse-scored, sum stored)
+    input.php               -- Practice description (condition-specific prompt)
+    refinement.php          -- C3 AI coach rounds with confirmation gate; max 2 rounds; RoundsTaken stored
+    fidelity.php            -- Review + semantic_fidelity + forced_fit Likerts + optional feedback
+    exploratory.php         -- Context + outcome free-text fields
+    questionnaire.php       -- Willingness + interest Likerts + optional general feedback
     debrief.php             -- Completion code + Prolific redirect
   templates/                -- header.php, footer.php (Bootstrap layout)
   assets/style.css          -- Custom styles

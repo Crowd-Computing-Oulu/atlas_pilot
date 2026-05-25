@@ -110,7 +110,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             );
 
             $next_target = 'mode';
-            $next_question = 'Can you tell us more about how you do this practice?';
+            $next_question = 'Could you describe in more detail how you carry out this practice?';
 
             if ($refined) {
                 $_SESSION['current_practice'] = $refined;
