@@ -1,0 +1,16 @@
+# Keep the `railway up` upload lean and ensure local secrets/data never ship.
+.git/
+.claude/
+.playwright-mcp/
+.scholark-1/
+.mcp.json
+.DS_Store
+.Rhistory
+*.md
+paper/
+docs/
+context/
+app/data/
+app/config.php
+*.db
+*.sqlite

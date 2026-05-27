@@ -24,3 +24,10 @@ app/config.php
 
 # scholark-1 session log (added by scholark-1)
 .scholark-1/
+
+# OS / editor / local tooling junk
+.DS_Store
+.Rhistory
+.claude/
+.mcp.json
+.playwright-mcp/

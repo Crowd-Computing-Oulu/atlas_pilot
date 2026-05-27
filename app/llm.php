@@ -4,23 +4,24 @@ function call_claude(string $system_prompt, string $user_message): ?array {
     $config = require __DIR__ . '/config.php';
 
     $payload = json_encode([
-        'model' => $config['claude_model'],
+        'model' => $config['llm_model'],
         'max_tokens' => 1024,
-        'system' => $system_prompt,
         'messages' => [
-            ['role' => 'user', 'content' => $user_message]
-        ]
+            ['role' => 'system', 'content' => $system_prompt],
+            ['role' => 'user', 'content' => $user_message],
+        ],
     ]);
 
-    $ch = curl_init('https://api.anthropic.com/v1/messages');
+    // OpenRouter (OpenAI-compatible chat completions endpoint).
+    $ch = curl_init('https://openrouter.ai/api/v1/chat/completions');
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
         CURLOPT_POSTFIELDS => $payload,
         CURLOPT_HTTPHEADER => [
             'Content-Type: application/json',
-            'x-api-key: ' . $config['claude_api_key'],
-            'anthropic-version: 2023-06-01',
+            'Authorization: Bearer ' . $config['llm_api_key'],
+            'X-Title: ATLAS Pilot',
         ],
         CURLOPT_TIMEOUT => 30,
     ]);
@@ -33,7 +34,7 @@ function call_claude(string $system_prompt, string $user_message): ?array {
     }
 
     $data = json_decode($response, true);
-    $text = $data['content'][0]['text'] ?? null;
+    $text = $data['choices'][0]['message']['content'] ?? null;
     if (!$text) return null;
 
     return ['text' => $text, 'raw' => $response];
