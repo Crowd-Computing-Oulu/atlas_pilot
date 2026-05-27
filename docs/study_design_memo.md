@@ -114,29 +114,26 @@ Tests: does a minimal verbal prompt push people up the specificity scale, and on
 
 ### Condition 3: AI-Assisted Iterative Refinement (n≥100)
 
-**Phase 1 (free description):** same prompt as C1 (no nudge).
+Single screen (description entry and refinement merged). Same unscaffolded prompt as C1.
 
-**Phase 2 (AI refinement, max 2 rounds with confirmation gate):**
+1. The participant writes a free-text description and clicks **Check my description** (button-triggered, not real-time).
+2. An LLM scores each dimension 0-3 against the dimension-specific rubric and renders three soft per-dimension indicators (qualitative label, calm fill, no numeric score, neutral state for "not mentioned") plus an optional one-line hint for sub-top dimensions. The LLM scores and hints; it never rewrites the participant's text.
+3. The participant edits their own narrative and re-checks. A generous cap of 5 checks applies. At least one check is required, so every C3 participant receives the AI treatment and the round-0 baseline text is captured.
+4. Persistent reassurance states they may stop whenever the description feels accurate, with no right answer and no payment dependence on the indicators. The participant continues whenever they choose.
 
-After the participant submits the free description:
+**Variable of interest: RoundsTaken (open count) = number of re-checks after the first.** What fraction of descriptions participants judge complete at first check, and how specificity evolves across checks.
 
-1. AI extracts a first-pass practice ⟨T, D, M⟩ from the text.
-2. AI shows the extracted practice and asks: "Does this accurately summarise the practice you described? **[Yes, accurate]** / **[No, let me refine]**"
-3. If Yes: exit C3. RoundsTaken = 0.
-4. If No: AI asks a targeted follow-up to sharpen the lowest-specificity dimension. Participant responds. AI updates the extracted practice. Same gate is shown again.
-5. Hard cap at 2 refinement rounds. After round 2 the participant proceeds regardless.
+**Measurement separation.** The runtime LLM 0-3 scores drive only the coach and are stored as telemetry. The measured specificity DV (all conditions) is post-hoc human (Prolific) raters; LLM-human agreement is reported as a secondary, bounded result. The coaching instrument (LLM) is independent of the measuring instrument (humans), so there is no circularity.
 
-**Variable of interest: RoundsTaken ∈ {0, 1, 2}.** This is itself a finding: what fraction of free-text descriptions are participant-judged as already complete, and what fraction need one or two rounds of AI dialogue?
-
-Tests: how does AI-assisted dialogue change per-dimension specificity, isolated from textual-scaffolding effects (via the C2 control)?
+Tests: how does AI-assisted refinement change per-dimension specificity, isolated from textual-scaffolding effects (via the C2 control)?
 
 ---
 
 ## Study Flow (as implemented in app)
 
 1. Consent + eligibility + brief PSS-4
-2. Practice description (condition-specific prompt)
-3. [C3 only] AI coach refinement, max 2 rounds with confirmation gate
+2. Practice description (C1/C2: condition-specific prompt; C3 merges description and refinement on one screen)
+3. [C3 only] On the same screen: Check (LLM 0-3 scoring with soft indicators and hints), edit and re-check up to 5 times, continue when accurate
 4. Fidelity check: C1 and C2 see their raw text back; C3 sees the structured practice
 5. Context + outcome (exploratory practice-report fields)
 6. Questionnaire (willingness, interest, feedback)
@@ -150,9 +147,9 @@ Tests: how does AI-assisted dialogue change per-dimension specificity, isolated 
 
 | Measure | Type | Applied to |
 |---------|------|-----------|
-| Per-dimension specificity (T, D, M each 0-3) | Coded by Prolific raters, blind | All conditions, on raw text (C1/C2) and per-round transcript (C3) |
-| Per-round specificity gain | Coded + telemetry | C3 |
-| RoundsTaken ∈ {0, 1, 2} | Telemetry | C3 |
+| Per-dimension specificity (T, D, M each 0-3) | Coded by Prolific raters, blind (the measured DV) | All conditions, on final text (C1/C2) and per-check snapshots (C3) |
+| Per-check specificity gain | Telemetry (runtime LLM 0-3) + human coding | C3 |
+| RoundsTaken (open count) | Telemetry | C3 |
 
 ### Secondary DVs
 
@@ -161,7 +158,8 @@ Tests: how does AI-assisted dialogue change per-dimension specificity, isolated 
 | Semantic fidelity (Likert 1-7) | Self-report | Does the structured/free-text representation capture intent? |
 | Forced-fit (Likert 1-7) | Self-report | Boundary conditions: where does the structure mis-fit? |
 | Sum specificity (T+D+M, 0-9) | Derived | Descriptive composite, no threshold |
-| Time per round | Telemetry (C3) | Effort trajectory |
+| Time per check | Telemetry (C3) | Effort trajectory |
+| Runtime LLM 0-3 scores per check | Telemetry (C3) | Coaching signal; LLM-human agreement reported |
 | Willingness to contribute (Likert 1-7) | Self-report | Atlas viability signal |
 | Context and outcome triples | Open text | Atlas enrichment |
 | PSS-4 (0-16) | Self-report | Sample characterisation only |
@@ -206,8 +204,8 @@ Detailed plan in `docs/analysis_plan_v1.md`. High-level:
 
 - **C1 vs C2.** Three ordinal logistic regressions (one per dimension). Bonferroni-corrected.
 - **C1 vs C3-final.** Three ordinal logistic regressions, same structure. Bonferroni-corrected.
-- **C3 within-subjects refinement.** Cumulative-link mixed-effects model on per-dimension specificity by round, restricted to participants who took ≥1 round. Random intercept per participant.
-- **RoundsTaken distribution.** Descriptive (proportion at 0 / 1 / 2).
+- **C3 within-subjects refinement.** Cumulative-link mixed-effects model on per-dimension specificity by check, fit on all C3 participants (RoundsTaken=0 contribute their round-0 datum, RoundsTaken≥1 contribute the slope). Random intercept per participant.
+- **RoundsTaken distribution.** Descriptive (open count: proportion at 0, 1, 2, ... re-checks).
 - **Dimension asymmetry.** Compare effect sizes across T vs D vs M within each contrast.
 - **Atlas analyses.** Descriptive (canonical cluster count, frequency distribution, per-cluster specificity, dosage and mode value variation per cluster).
 - **Power-law fit on technique frequency.** Attempted (Clauset-Shalizi-Newman); reported as exploratory given modest N.
@@ -220,7 +218,7 @@ Power analysis reported retrospectively at submission.
 
 ### HCOMP paper contributions, ordered by HCOMP pillars
 
-1. **Complementarity (lead).** A two-round AI dialogue increases per-dimension specificity from baseline level X to level Y, isolated from textual-scaffolding effects via the no-AI nudge control. The increase concentrates on [dimensions]; on [other dimensions], AI dialogue adds little beyond what a textual nudge already provides. RoundsTaken distribution shows what fraction of free-text descriptions are participant-judged as already complete.
+1. **Complementarity (lead).** AI-assisted refinement increases per-dimension specificity from baseline level X to level Y, isolated from textual-scaffolding effects via the no-AI nudge control. The increase concentrates on [dimensions]; on [other dimensions], AI refinement adds little beyond what a textual nudge already provides. RoundsTaken distribution shows what fraction of free-text descriptions are participant-judged as already complete at first check.
 2. **Alignment / fidelity.** Across refinement rounds, semantic-fidelity ratings show [pattern]; forced-fit ratings show [pattern]. The AI's extracted practice preserves participant intent on [dimensions] but distorts on [dimensions]. We characterise where AI-extracted structure aligns with self-report and where it diverges.
 3. **Dataset (Human Contributions to AI).** A v0.1 seed practice atlas for stress and anxiety coping: N canonical practices contributed by Prolific participants under three scaffolding regimes, with primitive-level frequencies, per-dimension specificity profiles, and self-reported context-outcome triples.
 
@@ -259,7 +257,7 @@ The app and supporting docs need updates to match the locked design. None are te
 
 - `app/steps/input.php`: update C1 and C2 prompt text to include "specifically when you are feeling stressed or anxious".
 - `app/steps/consent.php`: update eligibility text; add PSS-4 either at end of consent or as a new step before input.
-- `app/steps/refinement.php`: add confirmation gate after each AI extraction (Yes-exit / No-refine). Hard cap at 2 refinement rounds. Track RoundsTaken in DB.
+- `app/steps/refinement.php`: single-screen specificity meter (Check button, LLM 0-3 scoring, soft indicators, optional hints, re-check cap 5). RoundsTaken (open count) tracked in DB. SHIPPED.
 - `app/llm.php`: update the system prompt to use "practice" / "primitive" terminology rather than "behavioural gene".
 - (Optional cleanup) Internal variable names (`$gene` → `$practice`), CSS class names (`.gene-card` → `.practice-card`), DB column comments. Schema (`gene_extractions` table) can stay; not user-facing.
 - `paper/paper.tex`: switch venue declaration from CHI '27 to HCOMP '26 and `acmart` document class option from `manuscript` to `sigconf`.

@@ -2,8 +2,8 @@
 $page_title = 'ATLAS Study — Welcome';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (empty($_POST['consent']) || empty($_POST['eligible_age']) || empty($_POST['eligible_practice'])) {
-        $error = 'Please confirm all items to continue.';
+    if (empty($_POST['consent'])) {
+        $error = 'Please confirm the statement to continue.';
     } else {
         // Use forced condition if set (test links), otherwise random
         $condition = $_SESSION['forced_condition'] ?? random_int(1, 3);
@@ -58,17 +58,9 @@ require __DIR__ . '/../templates/header.php';
     <?php endif; ?>
 
     <form method="post" class="mt-4">
-        <div class="form-check mb-3">
-            <input class="form-check-input" type="checkbox" name="consent" value="1" id="consent">
-            <label class="form-check-label" for="consent">I have read the above information and agree to participate in this study.</label>
-        </div>
-        <div class="form-check mb-3">
-            <input class="form-check-input" type="checkbox" name="eligible_age" value="1" id="eligible_age">
-            <label class="form-check-label" for="eligible_age">I am 18 years of age or older.</label>
-        </div>
         <div class="form-check mb-4">
-            <input class="form-check-input" type="checkbox" name="eligible_practice" value="1" id="eligible_practice">
-            <label class="form-check-label" for="eligible_practice">I have a practice I use specifically when I feel stressed or anxious, and I have used it in the past month.</label>
+            <input class="form-check-input" type="checkbox" name="consent" value="1" id="consent"<?= $fill ? ' checked' : '' ?>>
+            <label class="form-check-label" for="consent">I confirm that I am 18 years of age or older, that I have a practice I use specifically when I feel stressed or anxious and have used it in the past month, and that I have read the information above and agree to participate in this study.</label>
         </div>
 
         <button type="submit" class="btn btn-primary btn-lg w-100">Continue</button>

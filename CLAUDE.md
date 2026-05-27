@@ -28,9 +28,9 @@ Pilot artefacts use these terms consistently. Earlier drafts used "behavioural g
 
 - **Condition 1 (Pure baseline):** Free text, no hints, no AI. Tests at what specificity level people naturally encode T/D/M.
 - **Condition 2 (Textual nudge):** Free text with verbal hints toward "what you do, how much, in what way." No AI. Tests whether minimal prompting increases specificity.
-- **Condition 3 (AI coach):** Free text (same prompt as C1), then up to 2 rounds of iterative AI dialogue with a confirmation gate after each AI extraction. Participant can exit at round 0 if the extraction looks accurate. RoundsTaken ∈ {0, 1, 2} is itself a primary variable of interest.
+- **Condition 3 (AI coach):** Single screen. Free text (same prompt as C1) with a "Check my description" button that runs one LLM analysis scoring each dimension 0-3 against the rubric and showing soft per-dimension indicators plus optional hints. The participant edits their own narrative and re-checks (generous cap of 5), continuing whenever it feels accurate (no forced threshold; at least one check required so the AI treatment is always delivered). The LLM scores and hints but never rewrites the text. **RoundsTaken = number of re-checks after the first (open count)** is a primary variable of interest.
 
-**Key difference:** Conditions 1-2 have NO AI interaction during the study. Only Condition 3 involves live AI. **Specificity coding for ALL conditions is done post-hoc by Prolific raters** (with rubric pilot to achieve kappa ≥ 0.6), not by the LLM. Canonical-technique clustering for the atlas is done expert-style by Hosio + 1 coauthor.
+**Key difference:** Conditions 1-2 have NO AI interaction during the study. Only Condition 3 involves live AI. **The measured specificity DV for ALL conditions is post-hoc human (Prolific) raters** (rubric pilot to kappa ≥ 0.6), not the LLM. In C3 the runtime LLM 0-3 scores drive the coach and are stored as telemetry; LLM-human agreement is reported post-hoc (a bounded limitation, not the result). Canonical-technique clustering for the atlas is done expert-style by Hosio + 1 coauthor.
 
 ### Domain
 
@@ -41,7 +41,7 @@ All participants describe a practice they use **specifically when feeling stress
 1. Consent + eligibility
 2. PSS-4 intake (sample characterisation only, descriptive)
 3. Practice description (condition-specific prompt)
-4. [Condition 3 only] AI coach refinement, max 2 rounds with confirmation gate after each AI extraction
+4. [Condition 3 only] AI coach on a single screen: describe, Check (LLM scores T/D/M 0-3 with soft indicators and optional hints), edit and re-check up to 5 times, continue when it feels accurate
 5. Fidelity check: C1/C2 see their raw text back; C3 sees the structured practice
 6. Context + outcome (exploratory practice-report fields)
 7. Questionnaire (willingness, interest, optional open feedback)
@@ -49,7 +49,7 @@ All participants describe a practice they use **specifically when feeling stress
 
 ### Key Measurement: Specificity per Dimension
 
-Each dimension (T, D, M) is coded on a 0-3 specificity scale (absent → category → named → parameterised), grounded in TIDieR (Hoffmann 2014) and the Michie ontologies (Michie 2013, Marques 2024). Sum specificity = T+D+M (0-9), reported as a descriptive composite only. The earlier "computability threshold" of ≥6 is dropped from the pilot's analysis.
+Each dimension (T, D, M) is coded on a 0-3 specificity scale using **dimension-specific anchors** (Technique: absent/category/named/parameterised; Dosage: absent/vague/single-parameter/multi-parameter; Mode: absent/vague/specified/operationalised), grounded in TIDieR (Hoffmann 2014), the Michie ontologies (Michie 2013, Marques 2024), and the Mode of Delivery Ontology (Marques 2021). The measured DV is post-hoc human raters; in C3 the runtime LLM also scores 0-3 to drive the coach (telemetry). Sum specificity = T+D+M (0-9), reported as a descriptive composite only. The earlier "computability threshold" of ≥6 is dropped from the pilot's analysis.
 
 ### Dataset Contribution: Seed Practice Atlas (v0.1)
 
@@ -57,7 +57,7 @@ Released on Zenodo/OSF with the paper. Canonical-technique clustering done exper
 
 ## Implementation TODOs from the locked design
 
-Most locked-design code changes have shipped (PSS-4 intake step, C1/C2 stress framing in prompts, C3 confirmation gate with RoundsTaken telemetry, user-facing "practice"/"primitive" terminology in `llm.php` system prompts and `debrief.php` copy). Remaining items:
+Most locked-design code changes have shipped (PSS-4 intake step, C1/C2 stress framing in prompts, single-screen C3 specificity meter with 0-3 telemetry, OpenRouter LLM, Railway deploy, researcher auto-fill preview mode). Remaining items:
 
 - `paper/paper.tex`: `acmart` document class is still `manuscript`; switch to `sigconf` before submission. Venue declaration already names HCOMP 2026.
 - (Optional cleanup) Internal symbols retain legacy "gene" terminology: function names (`extract_gene`, `refine_gene`), session/array variables (`$gene_json`, `$_SESSION['current_practice']` partially renamed), CSS classes (`.gene-card`, `.gene-label`, `.gene-value`, `.gene-missing`), and the `gene_extractions` DB table. None are user-facing.
@@ -71,12 +71,12 @@ app/                        -- PHP web application
   config.php                -- Local config: DB path, API key, admin password (GITIGNORED)
   config.example.php        -- Template for config
   db.php                    -- SQLite connection + schema init
-  llm.php                   -- Claude API wrapper (extraction + refinement prompts)
+  llm.php                   -- OpenRouter (OpenAI-compatible) wrapper; analyse_practice scores T/D/M 0-3
   steps/                    -- One PHP file per study step
     consent.php             -- Consent + eligibility + condition assignment
     intake.php              -- PSS-4 (4 items, q2/q3 reverse-scored, sum stored)
     input.php               -- Practice description (condition-specific prompt)
-    refinement.php          -- C3 AI coach rounds with confirmation gate; max 2 rounds; RoundsTaken stored
+    refinement.php          -- C3 single-screen meter: describe + Check (LLM 0-3 scoring) + hints; re-check up to 5; RoundsTaken stored
     fidelity.php            -- Review + semantic_fidelity + forced_fit Likerts + optional feedback
     exploratory.php         -- Context + outcome free-text fields
     questionnaire.php       -- Willingness + interest Likerts + optional general feedback
@@ -104,14 +104,14 @@ Note on internal naming: the database table `gene_extractions` and some PHP vari
 - Backend: PHP 8+ (no framework), SQLite database
 - Frontend: Bootstrap 5 via CDN
 - Hosting: Railway
-- LLM: Claude API for Condition 3 only (real-time extraction + refinement)
+- LLM: OpenRouter (anthropic/claude-sonnet-4.6) for Condition 3 only (button-triggered specificity analysis)
 
 ## Admin Dashboard
 
 Access: `/admin.php?key=<admin_key>`
 
 - Overview stats, per-condition breakdown
-- Test links for all 3 conditions (test_ prefix = no DB writes)
+- Test links and auto-filled preview links for all 3 conditions (no DB writes)
 - Participant table with delete button (removes all associated data)
 - Detail view per participant (full response chain, practice extraction trajectory)
 - CSV exports

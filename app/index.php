@@ -1,12 +1,20 @@
 <?php
 session_start();
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/synthetic.php';
 
 $step = $_GET['step'] ?? 'consent';
 
 // Handle forced condition for testing (e.g., ?condition=2)
 if (isset($_GET['condition']) && $step === 'consent') {
     $_SESSION['forced_condition'] = (int)$_GET['condition'];
+}
+
+// Researcher preview: ?fill=1 pre-fills every form with synthetic data and implies
+// test mode (no DB writes). Set/clear on each consent entry so a plain test link used
+// after a preview does not inherit a stale fill flag from the session.
+if ($step === 'consent') {
+    $_SESSION['fill'] = isset($_GET['fill']);
 }
 
 // Handle Prolific PID or generate web/test PID
@@ -20,8 +28,10 @@ if ($step === 'consent' && !isset($_SESSION['participant_id'])) {
         $_SESSION['prolific_pid'] = 'web_' . bin2hex(random_bytes(4));
     }
 
-    // Test mode: test_ prefix means no database writes
-    if (isset($_GET['test'])) {
+    // Test mode: test_ prefix means no database writes. Preview (fill) implies test.
+    // Both params are preserved on the consent form POST (the form has no action), so
+    // source is set correctly for the whole flow.
+    if (isset($_GET['test']) || isset($_GET['fill'])) {
         $_SESSION['prolific_pid'] = 'test_' . bin2hex(random_bytes(4));
         $_SESSION['source'] = 'test';
     }
@@ -29,6 +39,10 @@ if ($step === 'consent' && !isset($_SESSION['participant_id'])) {
 
 // Check if this is a test session (no DB writes)
 $is_test = ($_SESSION['source'] ?? '') === 'test';
+
+// Researcher preview: when on, each step renders pre-filled with synthetic values.
+$fill = !empty($_SESSION['fill']);
+$syn = $fill ? synthetic_preview() : [];
 
 // Calculate progress for progress bar
 $steps_order = ['consent', 'intake', 'input', 'refinement', 'fidelity', 'exploratory', 'questionnaire', 'debrief'];

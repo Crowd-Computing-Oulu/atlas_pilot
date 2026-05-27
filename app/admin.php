@@ -143,6 +143,12 @@ $page_title = 'ATLAS Admin';
                 <a href="index.php?test=1&condition=2" target="_blank" class="btn btn-outline-primary btn-sm">Condition 2 — Nudge</a>
                 <a href="index.php?test=1&condition=3" target="_blank" class="btn btn-outline-primary btn-sm">Condition 3 — AI Coach</a>
             </div>
+            <h6 class="mt-3 mb-2">Preview <small class="text-muted">(auto-filled, no data stored)</small></h6>
+            <div class="d-flex gap-2">
+                <a href="index.php?test=1&fill=1&condition=1" target="_blank" class="btn btn-outline-secondary btn-sm">C1 Baseline</a>
+                <a href="index.php?test=1&fill=1&condition=2" target="_blank" class="btn btn-outline-secondary btn-sm">C2 Nudge</a>
+                <a href="index.php?test=1&fill=1&condition=3" target="_blank" class="btn btn-outline-secondary btn-sm">C3 AI Coach</a>
+            </div>
         </div>
     </div>
 
@@ -294,15 +300,14 @@ $page_title = 'ATLAS Admin';
         <div class="card-body">
             <h6>Gene Extractions (Refinement Trajectory)</h6>
             <table class="table table-sm">
-                <thead><tr><th>Round</th><th>Technique</th><th>Dosage</th><th>Mode</th><th>Target</th></tr></thead>
+                <thead><tr><th>Round</th><th>Technique (lvl)</th><th>Dosage (lvl)</th><th>Mode (lvl)</th></tr></thead>
                 <tbody>
                 <?php foreach ($extractions as $e): ?>
                 <tr>
                     <td><?= $e['round'] ?></td>
-                    <td><?= htmlspecialchars($e['technique'] ?? '—') ?> <small class="text-muted">(<?= $e['technique_confidence'] ?>)</small></td>
-                    <td><?= htmlspecialchars($e['dosage'] ?? '—') ?> <small class="text-muted">(<?= $e['dosage_confidence'] ?>)</small></td>
-                    <td><?= htmlspecialchars($e['mode'] ?? '—') ?> <small class="text-muted">(<?= $e['mode_confidence'] ?>)</small></td>
-                    <td><?= $e['targeted_dimension'] ?: '—' ?></td>
+                    <td><?= htmlspecialchars($e['technique'] ?? '—') ?> <small class="text-muted">(<?= $e['technique_level'] ?? '—' ?>)</small></td>
+                    <td><?= htmlspecialchars($e['dosage'] ?? '—') ?> <small class="text-muted">(<?= $e['dosage_level'] ?? '—' ?>)</small></td>
+                    <td><?= htmlspecialchars($e['mode'] ?? '—') ?> <small class="text-muted">(<?= $e['mode_level'] ?? '—' ?>)</small></td>
                 </tr>
                 <?php endforeach; ?>
                 </tbody>

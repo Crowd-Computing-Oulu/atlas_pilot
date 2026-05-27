@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Condition 3 has a structured gene from the refinement step
-$gene = $_SESSION['current_gene'] ?? null;
+$gene = $_SESSION['current_practice'] ?? null;
 $show_gene = ($condition === 3 && $gene);
 
 require __DIR__ . '/../templates/header.php';
@@ -68,7 +68,7 @@ require __DIR__ . '/../templates/header.php';
         <div class="likert-group">
             <?php for ($i = 1; $i <= 7; $i++): ?>
             <label>
-                <input type="radio" name="semantic_fidelity" value="<?= $i ?>" required>
+                <input type="radio" name="semantic_fidelity" value="<?= $i ?>" required<?= ($fill && ($syn['semantic_fidelity'] ?? null) === $i) ? ' checked' : '' ?>>
                 <?= $i ?>
             </label>
             <?php endfor; ?>
@@ -82,7 +82,7 @@ require __DIR__ . '/../templates/header.php';
         <div class="likert-group">
             <?php for ($i = 1; $i <= 7; $i++): ?>
             <label>
-                <input type="radio" name="forced_fit" value="<?= $i ?>" required>
+                <input type="radio" name="forced_fit" value="<?= $i ?>" required<?= ($fill && ($syn['forced_fit'] ?? null) === $i) ? ' checked' : '' ?>>
                 <?= $i ?>
             </label>
             <?php endfor; ?>
@@ -94,7 +94,7 @@ require __DIR__ . '/../templates/header.php';
 
         <div class="mb-4">
             <label class="form-label">What is missing or wrong? (optional)</label>
-            <textarea class="form-control" name="fidelity_feedback" rows="2"></textarea>
+            <textarea class="form-control" name="fidelity_feedback" rows="2"><?= $fill ? htmlspecialchars($syn['fidelity_feedback'] ?? '') : '' ?></textarea>
         </div>
 
         <button type="submit" class="btn btn-primary btn-lg w-100">Continue</button>

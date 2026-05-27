@@ -52,7 +52,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute();
         }
 
-        header('Location: ?step=input');
+        $next = (($_SESSION['condition'] ?? 0) === 3) ? 'refinement' : 'input';
+        header('Location: ?step=' . $next);
         exit;
     }
 }
@@ -79,7 +80,7 @@ require __DIR__ . '/../templates/header.php';
             <div class="d-flex flex-column gap-1">
                 <?php foreach ($pss_options as $value => $label): ?>
                 <label class="d-flex align-items-center gap-2">
-                    <input type="radio" name="<?= $name ?>" value="<?= $value ?>" required>
+                    <input type="radio" name="<?= $name ?>" value="<?= $value ?>" required<?= ($fill && ($syn['pss4'][$name] ?? null) === $value) ? ' checked' : '' ?>>
                     <span><?= htmlspecialchars($label) ?></span>
                 </label>
                 <?php endforeach; ?>

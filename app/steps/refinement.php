@@ -1,5 +1,5 @@
 <?php
-$page_title = 'ATLAS Study — Refining Your Practice';
+$page_title = 'ATLAS Study — Your Practice';
 require_once __DIR__ . '/../llm.php';
 
 if (!isset($_SESSION['participant_id']) || ($_SESSION['condition'] ?? 0) !== 3) {
@@ -7,61 +7,72 @@ if (!isset($_SESSION['participant_id']) || ($_SESSION['condition'] ?? 0) !== 3) 
     exit;
 }
 
-if (!isset($_SESSION['description'])) {
-    header('Location: ?step=input');
-    exit;
-}
+const C3_MAX_ANALYSES = 5;
+$prompt_text = 'Think of something you do specifically when you are feeling stressed or anxious to help yourself feel better. Describe it in your own words. Tell us whatever feels important about what you do.';
 
-// First entry: do the round-0 extraction and start at the gate.
-if (!isset($_SESSION['refinement_round'])) {
-    $practice = extract_gene($_SESSION['description']);
-    if (!$practice) {
-        $practice = [
-            'technique' => ['value' => null, 'confidence' => 'low'],
-            'dosage' => ['value' => null, 'confidence' => 'low'],
-            'mode' => ['value' => null, 'confidence' => 'low'],
-        ];
-    }
+$analyses = (int)($_SESSION['c3_analyses'] ?? 0);
+$practice = $_SESSION['current_practice'] ?? null;
+$desc = $_SESSION['description'] ?? '';
+$error = '';
 
-    if (!$is_test) {
-        $db = get_db();
-        $stmt = $db->prepare('INSERT INTO gene_extractions (participant_id, round, technique, dosage, mode, technique_confidence, dosage_confidence, mode_confidence, raw_llm_response) VALUES (:pid, 0, :t, :d, :m, :tc, :dc, :mc, :raw)');
-        $stmt->bindValue(':pid', $_SESSION['participant_id']);
-        $stmt->bindValue(':t', $practice['technique']['value']);
-        $stmt->bindValue(':d', $practice['dosage']['value']);
-        $stmt->bindValue(':m', $practice['mode']['value']);
-        $stmt->bindValue(':tc', $practice['technique']['confidence']);
-        $stmt->bindValue(':dc', $practice['dosage']['confidence']);
-        $stmt->bindValue(':mc', $practice['mode']['confidence']);
-        $stmt->bindValue(':raw', $practice['_raw'] ?? '');
-        $stmt->execute();
-    }
-
-    $_SESSION['current_practice'] = $practice;
-    $_SESSION['refinement_round'] = 0;       // refinement rounds completed so far
-    $_SESSION['refinement_phase'] = 'gate';  // 'gate' or 'ask'
-}
-
-$round = $_SESSION['refinement_round'];
-$phase = $_SESSION['refinement_phase'];
-
-// POST handlers
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if ($phase === 'gate') {
-        $decision = $_POST['gate_decision'] ?? '';
-        $is_final = ($round >= 2);
+    $action = $_POST['action'] ?? '';
+    $desc = trim($_POST['description'] ?? '');
 
-        if (!$is_test) {
-            $db = get_db();
-            $stmt = $db->prepare('UPDATE gene_extractions SET gate_decision = :gd WHERE participant_id = :pid AND round = :round');
-            $stmt->bindValue(':gd', $decision);
-            $stmt->bindValue(':pid', $_SESSION['participant_id']);
-            $stmt->bindValue(':round', $round);
-            $stmt->execute();
+    if ($action === 'analyse') {
+        if (strlen($desc) < 10) {
+            $error = 'Please write at least a few sentences about your practice first.';
+        } elseif ($analyses >= C3_MAX_ANALYSES) {
+            $error = 'You have reached the maximum number of checks. Continue whenever your description feels accurate.';
+        } else {
+            $_SESSION['description'] = $desc;
+            $result = analyse_practice($desc);
+            if (!$result) {
+                // Graceful fallback: do not block the participant if the API fails.
+                $result = [
+                    'technique' => ['value' => null, 'level' => 0, 'hint' => ''],
+                    'dosage'    => ['value' => null, 'level' => 0, 'hint' => ''],
+                    'mode'      => ['value' => null, 'level' => 0, 'hint' => ''],
+                ];
+            }
+            $round = $analyses; // 0 = first/initial analysis
+
+            if (!$is_test) {
+                $db = get_db();
+                $stmt = $db->prepare('INSERT INTO responses (participant_id, step, prompt_shown, response_text) VALUES (:pid, :step, :prompt, :text)');
+                $stmt->bindValue(':pid', $_SESSION['participant_id']);
+                $stmt->bindValue(':step', $round === 0 ? 'initial_description' : ('c3_text_r' . $round));
+                $stmt->bindValue(':prompt', $prompt_text);
+                $stmt->bindValue(':text', $desc);
+                $stmt->execute();
+
+                $stmt = $db->prepare('INSERT INTO gene_extractions (participant_id, round, technique, dosage, mode, technique_level, dosage_level, mode_level, description_snapshot, raw_llm_response) VALUES (:pid, :round, :t, :d, :m, :tl, :dl, :ml, :snap, :raw)');
+                $stmt->bindValue(':pid', $_SESSION['participant_id']);
+                $stmt->bindValue(':round', $round);
+                $stmt->bindValue(':t', $result['technique']['value']);
+                $stmt->bindValue(':d', $result['dosage']['value']);
+                $stmt->bindValue(':m', $result['mode']['value']);
+                $stmt->bindValue(':tl', $result['technique']['level']);
+                $stmt->bindValue(':dl', $result['dosage']['level']);
+                $stmt->bindValue(':ml', $result['mode']['level']);
+                $stmt->bindValue(':snap', $desc);
+                $stmt->bindValue(':raw', $result['_raw'] ?? '');
+                $stmt->execute();
+            }
+
+            $_SESSION['current_practice'] = $result;
+            $_SESSION['c3_analyses'] = $analyses + 1;
+            header('Location: ?step=refinement');
+            exit;
         }
-
-        if ($decision === 'yes' || $is_final) {
-            $rounds_taken = ($decision === 'yes') ? $round : 2;
+    } elseif ($action === 'continue') {
+        if ($analyses < 1) {
+            $error = 'Please use "Check my description" at least once before continuing.';
+        } else {
+            if ($desc !== '') {
+                $_SESSION['description'] = $desc;
+            }
+            $rounds_taken = $analyses - 1; // re-analyses after the first
             if (!$is_test) {
                 $db = get_db();
                 $stmt = $db->prepare('UPDATE participants SET rounds_taken = :rt WHERE id = :pid');
@@ -73,87 +84,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             header('Location: ?step=fidelity');
             exit;
         }
-
-        if ($decision === 'no') {
-            // Set up the follow-up question targeting the weakest dimension.
-            if (!isset($_SESSION['current_question']) || !isset($_SESSION['current_target']) || $round === 0) {
-                $initial = get_initial_question($_SESSION['current_practice']);
-                $_SESSION['current_target'] = $initial['dimension'];
-                $_SESSION['current_question'] = $initial['question'];
-            }
-            $_SESSION['refinement_phase'] = 'ask';
-            header('Location: ?step=refinement');
-            exit;
-        }
-    } elseif ($phase === 'ask') {
-        $response = trim($_POST['response'] ?? '');
-        if (strlen($response) < 5) {
-            $error = 'Please provide a bit more detail.';
-        } else {
-            $target = $_SESSION['current_target'];
-
-            if (!$is_test) {
-                $db = get_db();
-                $stmt = $db->prepare('INSERT INTO responses (participant_id, step, prompt_shown, response_text) VALUES (:pid, :step, :prompt, :text)');
-                $stmt->bindValue(':pid', $_SESSION['participant_id']);
-                $stmt->bindValue(':step', 'refinement_r' . ($round + 1));
-                $stmt->bindValue(':prompt', $_SESSION['current_question']);
-                $stmt->bindValue(':text', $response);
-                $stmt->execute();
-            }
-
-            $refined = refine_gene(
-                $_SESSION['description'],
-                $_SESSION['current_practice'],
-                $response,
-                $target
-            );
-
-            $next_target = 'mode';
-            $next_question = 'Could you describe in more detail how you carry out this practice?';
-
-            if ($refined) {
-                $_SESSION['current_practice'] = $refined;
-                $next_target = $refined['next_target'] ?? 'mode';
-                $next_question = $refined['next_question'] ?? $next_question;
-            } else {
-                $refined = $_SESSION['current_practice'];
-            }
-
-            $new_round = $round + 1;
-
-            if (!$is_test) {
-                $db = get_db();
-                $stmt = $db->prepare('INSERT INTO gene_extractions (participant_id, round, technique, dosage, mode, technique_confidence, dosage_confidence, mode_confidence, targeted_dimension, ai_question, raw_llm_response) VALUES (:pid, :round, :t, :d, :m, :tc, :dc, :mc, :td, :aq, :raw)');
-                $stmt->bindValue(':pid', $_SESSION['participant_id']);
-                $stmt->bindValue(':round', $new_round);
-                $stmt->bindValue(':t', $refined['technique']['value'] ?? null);
-                $stmt->bindValue(':d', $refined['dosage']['value'] ?? null);
-                $stmt->bindValue(':m', $refined['mode']['value'] ?? null);
-                $stmt->bindValue(':tc', $refined['technique']['confidence'] ?? 'low');
-                $stmt->bindValue(':dc', $refined['dosage']['confidence'] ?? 'low');
-                $stmt->bindValue(':mc', $refined['mode']['confidence'] ?? 'low');
-                $stmt->bindValue(':td', $target);
-                $stmt->bindValue(':aq', $_SESSION['current_question']);
-                $stmt->bindValue(':raw', $refined['_raw'] ?? '');
-                $stmt->execute();
-            }
-
-            // Set up the next round's question (used if participant clicks "No" again at the next gate).
-            $_SESSION['current_target'] = $next_target;
-            $_SESSION['current_question'] = $next_question;
-            $_SESSION['refinement_round'] = $new_round;
-            $_SESSION['refinement_phase'] = 'gate';
-            header('Location: ?step=refinement');
-            exit;
-        }
     }
 }
 
-$practice = $_SESSION['current_practice'] ?? [];
-$round = $_SESSION['refinement_round'];
-$phase = $_SESSION['refinement_phase'];
-$is_final = ($round >= 2);
+// Preview/fill: seed the box so the researcher can click Check straight away.
+if ($fill && $desc === '') {
+    $desc = $syn['description'] ?? '';
+}
+
+$dims = [
+    'technique' => ['title' => 'What you do', 'states' => [0 => 'not mentioned', 1 => 'general type', 2 => 'named', 3 => 'detailed']],
+    'dosage'    => ['title' => 'How much / how often', 'states' => [0 => 'not mentioned', 1 => 'vague', 2 => 'partly specified', 3 => 'detailed']],
+    'mode'      => ['title' => 'In what way / setting', 'states' => [0 => 'not mentioned', 1 => 'general', 2 => 'specified', 3 => 'detailed']],
+];
+
+$at_cap = ($analyses >= C3_MAX_ANALYSES);
 
 require __DIR__ . '/../templates/header.php';
 ?>
@@ -164,74 +109,70 @@ require __DIR__ . '/../templates/header.php';
 
 <div class="spinner-overlay" id="spinner">
     <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
-    <p class="text-muted">Analysing your response...</p>
+    <p class="text-muted">Reading your description...</p>
 </div>
 
-<?php if ($phase === 'gate'): ?>
+<style>
+    .dim-row { margin-bottom: 1rem; }
+    .dim-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: .3rem; }
+    .dim-title { font-weight: 600; }
+    .dim-state { font-size: .85rem; color: #6c757d; }
+    .dim-track { height: 10px; background: #e9ecef; border-radius: 5px; overflow: hidden; }
+    .dim-bar { height: 100%; border-radius: 5px; transition: width .3s ease; }
+    .dim-bar.l0 { width: 6%;   background: #ced4da; }
+    .dim-bar.l1 { width: 38%;  background: #9ec5fe; }
+    .dim-bar.l2 { width: 70%;  background: #6ea8fe; }
+    .dim-bar.l3 { width: 100%; background: #3d8bfd; }
+    .dim-hint { font-size: .85rem; color: #6c757d; margin-top: .3rem; }
+    .reassure { font-size: .9rem; color: #6c757d; background: #f1f3f5; border-radius: 6px; padding: .6rem .8rem; margin-bottom: .9rem; }
+</style>
 
 <div class="study-card">
-    <?php if ($is_final): ?>
-        <h4 class="mb-3">Here's your refined practice</h4>
-        <p class="text-muted">After two rounds of refinement, here is the final structured summary of what you described.</p>
-    <?php elseif ($round === 0): ?>
-        <h4 class="mb-3">How does this look?</h4>
-        <p class="text-muted">Based on what you wrote, here is how we have structured your practice.</p>
-    <?php else: ?>
-        <h4 class="mb-3">Updated based on what you added</h4>
-        <p class="text-muted">Here is the refined version after your last response.</p>
-    <?php endif; ?>
-
-    <div class="mb-4">
-        <?php
-        $dims = ['technique' => 'What you do', 'dosage' => 'How much / how often', 'mode' => 'In what way / setting'];
-        foreach ($dims as $key => $label):
-            $value = $practice[$key]['value'] ?? null;
-        ?>
-        <div class="gene-card">
-            <div class="gene-label"><?= $label ?></div>
-            <div class="gene-value">
-                <?php if ($value): ?>
-                    <?= htmlspecialchars($value) ?>
-                <?php else: ?>
-                    <span class="gene-missing">Not clearly captured yet</span>
-                <?php endif; ?>
-            </div>
-        </div>
-        <?php endforeach; ?>
-    </div>
-
-    <form method="post" onsubmit="document.getElementById('spinner').classList.add('active')">
-        <?php if ($is_final): ?>
-            <button type="submit" name="gate_decision" value="continue" class="btn btn-primary btn-lg w-100">Continue</button>
-        <?php else: ?>
-            <p class="fw-bold">Does this accurately summarise the practice you described?</p>
-            <div class="d-flex gap-2">
-                <button type="submit" name="gate_decision" value="yes" class="btn btn-success btn-lg flex-fill">Yes, accurate</button>
-                <button type="submit" name="gate_decision" value="no" class="btn btn-outline-primary btn-lg flex-fill">No, let me refine</button>
-            </div>
-        <?php endif; ?>
-    </form>
-</div>
-
-<?php elseif ($phase === 'ask'): ?>
-
-<div class="study-card">
-    <h4 class="mb-3">Tell us a bit more</h4>
+    <h4 class="mb-3">Your Practice</h4>
+    <p class="lead">Think of something you do <strong>specifically when you are feeling stressed or anxious</strong> to help yourself feel better.</p>
+    <p>Describe it in your own words. Tell us whatever feels important about what you do. When you are ready, use <strong>Check my description</strong> to see what an AI assistant picked up, and add detail if you like.</p>
 
     <?php if (!empty($error)): ?>
         <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
 
-    <div class="alert alert-info">
-        <?= htmlspecialchars($_SESSION['current_question']) ?>
-    </div>
-
     <form method="post" onsubmit="document.getElementById('spinner').classList.add('active')">
-        <textarea class="form-control mb-3" name="response" rows="3" placeholder="Your response..."><?= htmlspecialchars($_POST['response'] ?? '') ?></textarea>
-        <button type="submit" class="btn btn-primary btn-lg w-100">Continue</button>
+        <textarea class="form-control mb-3" name="description" rows="6" placeholder="Write about your practice here..."><?= htmlspecialchars($desc) ?></textarea>
+
+        <?php if ($practice): ?>
+            <h6 class="text-muted mb-3">What the AI picked up so far</h6>
+            <?php foreach ($dims as $key => $meta):
+                $level = (int)($practice[$key]['level'] ?? 0);
+                $hint = trim((string)($practice[$key]['hint'] ?? ''));
+            ?>
+            <div class="dim-row">
+                <div class="dim-head">
+                    <span class="dim-title"><?= $meta['title'] ?></span>
+                    <span class="dim-state"><?= htmlspecialchars($meta['states'][$level] ?? '') ?></span>
+                </div>
+                <div class="dim-track"><div class="dim-bar l<?= $level ?>"></div></div>
+                <?php if ($level < 3 && $hint !== ''): ?>
+                    <div class="dim-hint"><?= htmlspecialchars($hint) ?></div>
+                <?php endif; ?>
+            </div>
+            <?php endforeach; ?>
+
+            <div class="reassure">
+                Stop whenever this feels accurate to you. There is no right answer, and your payment does not depend on these indicators.
+            </div>
+        <?php endif; ?>
+
+        <div class="d-flex gap-2">
+            <?php if (!$at_cap): ?>
+                <button type="submit" name="action" value="analyse" class="btn <?= $practice ? 'btn-outline-primary' : 'btn-primary' ?> btn-lg flex-fill">
+                    <?= $practice ? 'Check again' : 'Check my description' ?>
+                </button>
+            <?php endif; ?>
+            <?php if ($analyses >= 1): ?>
+                <button type="submit" name="action" value="continue" class="btn btn-success btn-lg flex-fill">This is accurate, continue</button>
+            <?php endif; ?>
+        </div>
     </form>
 </div>
-
-<?php endif; ?>
 
 <?php require __DIR__ . '/../templates/footer.php'; ?>

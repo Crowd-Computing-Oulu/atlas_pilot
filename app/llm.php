@@ -40,22 +40,42 @@ function call_claude(string $system_prompt, string $user_message): ?array {
     return ['text' => $text, 'raw' => $response];
 }
 
-function extract_gene(string $description): ?array {
-    $system = "You are a research assistant helping to encode self-care practices into structured triples of three primitives: Technique, Dosage, and Mode.
+/**
+ * Score a free-text practice description on the 0-3 specificity rubric for each
+ * dimension (Technique, Dosage, Mode). The model only assesses the text; it never
+ * rewrites it. Returns per-dimension {value, level (0-3), hint} plus _raw, or null
+ * if the call/parse fails.
+ */
+function analyse_practice(string $description): ?array {
+    $system = "You analyse a free-text description of a self-care practice that a person uses specifically when feeling stressed or anxious. You score how specifically the text encodes three dimensions, using the rubric below. You do NOT rewrite, improve, or add to the person's text. You only assess what is already there, and where a dimension is below the top level you offer one short, optional suggestion of what kind of detail could be added.
 
-Given a free-text description of a practice the person uses specifically when feeling stressed or anxious, extract three primitive values:
-- Technique: What exactly the person does
-- Dosage: How much, how long, how often
-- Mode: In what form, setting, or with what support
+Dimensions and 0-3 specificity levels:
 
-For each dimension, provide the extracted value and a confidence level (high, medium, low).
-If a dimension is not mentioned or unclear, set value to null and confidence to low.
+TECHNIQUE (what the person does):
+ 0 absent: no technique mentioned
+ 1 category: broad category only (e.g. 'relaxation', 'exercise')
+ 2 named: a specific named practice (e.g. 'box breathing', 'running')
+ 3 parameterised: a named practice with defining parameters (e.g. '4-4-4-4 box breathing')
 
-Respond ONLY with valid JSON in this exact format:
+DOSAGE (how much / how often):
+ 0 absent: no dosage information
+ 1 vague: non-quantified (e.g. 'sometimes', 'when I need it')
+ 2 single parameter: one of duration, frequency, or intensity (e.g. '20 minutes' or '3x per week')
+ 3 multi parameter: two or more (e.g. '20 min, 3x per week')
+
+MODE (in what form / setting):
+ 0 absent: no mode information
+ 1 vague: minimal context (e.g. 'by myself', 'at home')
+ 2 specified: a clear mode with one qualifier (e.g. 'solo outdoors')
+ 3 operationalised: mode plus a delivery mechanism or setting detail (e.g. 'solo outdoors using a meditation app, in a park')
+
+For each dimension return: value (a short phrase capturing what was said, or null if absent), level (integer 0-3 from the rubric), and hint (a short, friendly, OPTIONAL suggestion of what detail could be added; use an empty string when level is 3). Keep hints gentle and never imply the person did something wrong.
+
+Respond ONLY with valid JSON in exactly this format:
 {
-  \"technique\": {\"value\": \"...\", \"confidence\": \"high|medium|low\"},
-  \"dosage\": {\"value\": \"...\", \"confidence\": \"high|medium|low\"},
-  \"mode\": {\"value\": \"...\", \"confidence\": \"high|medium|low\"}
+  \"technique\": {\"value\": \"...\", \"level\": 0, \"hint\": \"...\"},
+  \"dosage\": {\"value\": \"...\", \"level\": 0, \"hint\": \"...\"},
+  \"mode\": {\"value\": \"...\", \"level\": 0, \"hint\": \"...\"}
 }";
 
     $result = call_claude($system, "Description: " . $description);
@@ -64,72 +84,15 @@ Respond ONLY with valid JSON in this exact format:
     $json_match = [];
     if (preg_match('/\{[\s\S]*\}/', $result['text'], $json_match)) {
         $parsed = json_decode($json_match[0], true);
-        if ($parsed) {
+        if ($parsed && isset($parsed['technique'], $parsed['dosage'], $parsed['mode'])) {
+            foreach (['technique', 'dosage', 'mode'] as $d) {
+                $parsed[$d]['level'] = max(0, min(3, (int)($parsed[$d]['level'] ?? 0)));
+                $parsed[$d]['value'] = ($parsed[$d]['value'] ?? null) ?: null;
+                $parsed[$d]['hint'] = (string)($parsed[$d]['hint'] ?? '');
+            }
             $parsed['_raw'] = $result['raw'];
             return $parsed;
         }
     }
-
     return null;
-}
-
-function refine_gene(string $original_description, array $current_gene, string $participant_response, string $targeted_dimension): ?array {
-    $system = "You are a research assistant helping to refine a structured practice (Technique, Dosage, Mode primitives) describing a participant's self-care.
-
-The participant originally described a practice they use specifically when feeling stressed or anxious. An initial extraction was made, and now the participant has provided additional detail about the {$targeted_dimension} dimension.
-
-Update the extraction with the new information. Then write a follow-up question targeting the NEXT weakest dimension (any dimension other than the one just refined). The follow-up question is shown verbatim to a research participant in a formal academic study: use complete sentences, formal register, no contractions, and no em-dashes.
-
-Respond ONLY with valid JSON:
-{
-  \"technique\": {\"value\": \"...\", \"confidence\": \"high|medium|low\"},
-  \"dosage\": {\"value\": \"...\", \"confidence\": \"high|medium|low\"},
-  \"mode\": {\"value\": \"...\", \"confidence\": \"high|medium|low\"},
-  \"next_question\": \"...\",
-  \"next_target\": \"technique|dosage|mode\"
-}";
-
-    $gene_json = json_encode($current_gene, JSON_PRETTY_PRINT);
-    $user_msg = "Original description: {$original_description}\n\nCurrent gene extraction:\n{$gene_json}\n\nParticipant's additional detail about {$targeted_dimension}:\n{$participant_response}";
-
-    $result = call_claude($system, $user_msg);
-    if (!$result) return null;
-
-    $json_match = [];
-    if (preg_match('/\{[\s\S]*\}/', $result['text'], $json_match)) {
-        $parsed = json_decode($json_match[0], true);
-        if ($parsed) {
-            $parsed['_raw'] = $result['raw'];
-            return $parsed;
-        }
-    }
-
-    return null;
-}
-
-function get_initial_question(array $gene): array {
-    $dimensions = ['technique', 'dosage', 'mode'];
-    $confidence_order = ['low' => 0, 'medium' => 1, 'high' => 2];
-
-    $weakest = 'mode';
-    $weakest_score = 3;
-    foreach ($dimensions as $dim) {
-        $conf = $gene[$dim]['confidence'] ?? 'low';
-        $score = $confidence_order[$conf] ?? 0;
-        if ($score < $weakest_score) {
-            $weakest_score = $score;
-            $weakest = $dim;
-        }
-    }
-
-    $questions = [
-        'technique' => "Could you describe in more detail what you do during this practice? Please include the specific steps or method.",
-        'dosage' => "Could you describe how much you do this practice? In particular, how long does a typical session last, and how often do you do it?",
-        'mode' => "Could you describe how you carry out this practice? For example, do you do it alone or with others, in a specific place or setting, and with any tools or applications?",
-    ];
-
-    return [
-        'dimension' => $weakest,
-        'question' => $questions[$weakest],
-    ];
 }

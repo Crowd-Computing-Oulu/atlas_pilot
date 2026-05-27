@@ -51,7 +51,7 @@ require __DIR__ . '/../templates/header.php';
         <div class="likert-group">
             <?php for ($i = 1; $i <= 7; $i++): ?>
             <label>
-                <input type="radio" name="willingness" value="<?= $i ?>" required>
+                <input type="radio" name="willingness" value="<?= $i ?>" required<?= ($fill && ($syn['willingness'] ?? null) === $i) ? ' checked' : '' ?>>
                 <?= $i ?>
             </label>
             <?php endfor; ?>
@@ -65,7 +65,7 @@ require __DIR__ . '/../templates/header.php';
         <div class="likert-group">
             <?php for ($i = 1; $i <= 7; $i++): ?>
             <label>
-                <input type="radio" name="interest" value="<?= $i ?>" required>
+                <input type="radio" name="interest" value="<?= $i ?>" required<?= ($fill && ($syn['interest'] ?? null) === $i) ? ' checked' : '' ?>>
                 <?= $i ?>
             </label>
             <?php endfor; ?>
@@ -77,7 +77,7 @@ require __DIR__ . '/../templates/header.php';
 
         <div class="mb-4">
             <label class="form-label fw-bold">Any thoughts on the experience? (optional)</label>
-            <textarea class="form-control" name="general_feedback" rows="3" placeholder="Anything you'd like to share about this study..."></textarea>
+            <textarea class="form-control" name="general_feedback" rows="3" placeholder="Anything you'd like to share about this study..."><?= $fill ? htmlspecialchars($syn['general_feedback'] ?? '') : '' ?></textarea>
         </div>
 
         <button type="submit" class="btn btn-primary btn-lg w-100">Finish</button>
