@@ -34,7 +34,7 @@ Pilot artefacts use these terms consistently. Earlier drafts used "behavioural g
 
 ### Domain
 
-All participants describe a practice they use **specifically when feeling stressed or anxious**, not as part of their general routine. PSS-4 (Cohen & Williamson 1988) administered at intake for sample characterisation only.
+All participants describe a practice they use **specifically when feeling stressed or anxious**, not as part of their general routine. PSS-4, the four-item brief form (Cohen & Williamson 1988) of the Perceived Stress Scale (Cohen, Kamarck & Mermelstein 1983), administered at intake for sample characterisation only.
 
 ### Study Flow (as currently implemented in app)
 
@@ -96,6 +96,8 @@ paper/                      -- HCOMP/ACM paper (separate git repo, Overleaf-sync
   references.bib            -- Bibliography
   context/                  -- Related-work .md notes
 ```
+
+**Paper workflow:** Do not compile `paper/paper.tex` locally. The paper is Overleaf-synced and compiles there. After editing paper files, just commit and push the paper repo (no local `pdflatex`/`bibtex`).
 
 Note on internal naming: the database table `gene_extractions` and some PHP variables / CSS classes (`$gene`, `.gene-card`) retain the older terminology. They are not user-facing and have been left alone to avoid schema migrations during active development. Renaming is optional cleanup.
 
