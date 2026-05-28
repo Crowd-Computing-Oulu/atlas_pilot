@@ -32,7 +32,7 @@ require __DIR__ . '/../templates/header.php';
 <div class="study-card">
     <?php if ($show_practice): ?>
         <h4 class="mb-3">Review Your Practice Description</h4>
-        <p>Here's the structured summary from our conversation:</p>
+        <p>Here's the structured summary the AI extracted from what you wrote:</p>
 
         <div class="mb-4">
             <?php
