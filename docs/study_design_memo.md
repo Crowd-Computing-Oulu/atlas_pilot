@@ -146,9 +146,8 @@ Tests: how does AI-assisted refinement change per-dimension specificity, isolate
 2. Practice description (C1/C2: condition-specific prompt; C3 merges description and refinement on one screen)
 3. [C3 only] On the same screen: Check (LLM 0-3 scoring with soft indicators and hints), edit and re-check up to 5 times, continue when accurate
 4. Fidelity check: C1 and C2 see their raw text back; C3 sees the structured practice
-5. Context + outcome (exploratory practice-report fields)
-6. Questionnaire (willingness, interest, feedback)
-7. Debrief + completion code
+5. Context + outcome + willingness to contribute (single combined step; interest and general feedback dropped 2026-05-28)
+6. Debrief + completion code
 
 ---
 
@@ -169,8 +168,7 @@ All measures listed together; no formal primary/secondary distinction is used in
 | Distortion open-text ("if you left out, invented, or distorted, explain") | Free text | All conditions | Directed content analysis (Hsieh & Shannon 2005) into pre-specified categories: omission, invention, distortion. Stored in legacy column `fidelity_feedback`. |
 | Time per check | Telemetry | C3 | Effort trajectory |
 | Runtime LLM 0-3 scores per check | Telemetry | C3 | Coaching signal; LLM-human agreement reported as a bounded comparison |
-| Willingness to contribute (Likert 1-7) | Self-report | All conditions | Atlas viability signal |
-| Interest (Likert 1-7) | Self-report | All conditions | Study experience |
+| Willingness to contribute (Likert 1-7) | Self-report | All conditions | Atlas viability signal (collected at end of exploratory step) |
 | Context and outcome triples | Open text | All conditions | Atlas enrichment |
 | PSS-4 (0-16) | Self-report at intake | All conditions | Sample characterisation only |
 | GAD-2 (0-6) | Self-report at intake | All conditions | Sample characterisation only |

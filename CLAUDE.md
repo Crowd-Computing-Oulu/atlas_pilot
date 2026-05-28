@@ -43,9 +43,8 @@ All participants describe a practice they use **specifically when feeling stress
 3. Practice description (condition-specific prompt)
 4. [Condition 3 only] AI coach on a single screen: describe, Check (LLM scores T/D/M 0-3 with soft indicators and optional hints), edit and re-check up to 5 times, continue when it feels accurate
 5. Fidelity check: C1/C2 see their raw text back; C3 sees the structured practice
-6. Context + outcome (exploratory practice-report fields)
-7. Questionnaire (willingness, interest, optional open feedback)
-8. Debrief + completion code
+6. Context + outcome + willingness to contribute (single combined step; interest and general feedback dropped 2026-05-28)
+7. Debrief + completion code
 
 ### Key Measurement: Specificity per Dimension
 
