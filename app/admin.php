@@ -18,23 +18,21 @@ if ($view === 'export') {
     $allowed = ['participants', 'responses', 'gene_extractions', 'questionnaire'];
     if (!in_array($table, $allowed)) die('Invalid table');
 
+    // PHP's SQLite3Result does not have fetchAll(); build rows via fetchArray loop.
     if ($table === 'participants') {
-        $rows = $db->query("SELECT * FROM participants ORDER BY id")->fetchAll(SQLITE3_ASSOC);
+        $sql = "SELECT * FROM participants ORDER BY id";
     } elseif ($table === 'responses') {
-        $rows = $db->query("SELECT r.*, p.prolific_pid, p.condition_num FROM responses r JOIN participants p ON r.participant_id = p.id ORDER BY r.id")->fetchAll(SQLITE3_ASSOC);
+        $sql = "SELECT r.*, p.prolific_pid, p.condition_num FROM responses r JOIN participants p ON r.participant_id = p.id ORDER BY r.id";
     } elseif ($table === 'gene_extractions') {
-        $rows = $db->query("SELECT g.*, p.prolific_pid, p.condition_num FROM gene_extractions g JOIN participants p ON g.participant_id = p.id ORDER BY g.id")->fetchAll(SQLITE3_ASSOC);
+        $sql = "SELECT g.*, p.prolific_pid, p.condition_num FROM gene_extractions g JOIN participants p ON g.participant_id = p.id ORDER BY g.id";
     } else {
-        $rows = $db->query("SELECT q.*, p.prolific_pid, p.condition_num FROM questionnaire q JOIN participants p ON q.participant_id = p.id ORDER BY q.id")->fetchAll(SQLITE3_ASSOC);
+        $sql = "SELECT q.*, p.prolific_pid, p.condition_num FROM questionnaire q JOIN participants p ON q.participant_id = p.id ORDER BY q.id";
     }
 
-    // Workaround: SQLite3Result doesn't have fetchAll in all PHP versions
-    if (!is_array($rows)) {
-        $result = $db->query("SELECT * FROM {$table} ORDER BY id");
-        $rows = [];
-        while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
-            $rows[] = $row;
-        }
+    $result = $db->query($sql);
+    $rows = [];
+    while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        $rows[] = $row;
     }
 
     header('Content-Type: text/csv');
