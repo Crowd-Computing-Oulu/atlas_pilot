@@ -51,13 +51,8 @@ require __DIR__ . '/../templates/header.php';
     <p>You will describe a practice you use specifically when feeling stressed or anxious, complete a short intake questionnaire, and answer a few questions about your experience.</p>
 
     <h5 class="mt-4">Your data and how we will use it</h5>
-    <p>Your Prolific ID is used only to issue compensation and is kept separate from the released text. What we do with what you write:</p>
-    <ul>
-        <li>Analyse and report results in academic publications.</li>
-        <li>Compute numerical representations (embeddings) of self-care practices, and build interactive tools and visualisations that organise and compare the practices people contribute.</li>
-        <li>Use the text as input to AI systems that help us cluster, label, or compare practices.</li>
-        <li>Release the dataset openly (e.g., on Zenodo or OSF, alongside the paper) so other researchers can reuse it. Once openly released, the dataset can also be used by third parties, including those building AI systems.</li>
-    </ul>
+    <p>Your Prolific ID is used only to issue compensation and is kept separate from the released text. We will use what you write to analyse and report results in academic publications, to compute numerical representations (embeddings) of self-care practices, and to build interactive tools and visualisations that organise and compare the practices people contribute. The text is also used as input to AI systems that help us cluster, label, and compare practices.</p>
+    <p>The dataset will be released openly (e.g., on Zenodo or OSF, alongside the paper) so other researchers can reuse it. Once openly released, the dataset can also be used by third parties, including those building AI systems.</p>
     <p>Please describe your practice in your own words. <strong>Do not include details that identify you or anyone else</strong> (names, workplaces, contact information). If you accidentally include such details, email <a href="mailto:simo.hosio@oulu.fi">simo.hosio@oulu.fi</a> and we will remove them from any released version.</p>
 
     <?php if (!empty($error)): ?>

@@ -28,13 +28,19 @@ require __DIR__ . '/../templates/header.php';
 
     <p>In the future, we aim to build an open platform where people can contribute their practices, explore what works for others in similar situations, and collectively build a science of everyday wellbeing.</p>
 
-    <div class="alert alert-success mt-4">
-        <strong>Your completion code:</strong>
-        <div class="fs-4 font-monospace mt-1"><?= htmlspecialchars($completion_code) ?></div>
-    </div>
-
-    <?php if ($source === 'prolific'): ?>
-        <a href="<?= htmlspecialchars($prolific_url) ?>" class="btn btn-primary btn-lg w-100 mt-3">Return to Prolific</a>
+    <?php if ($source === 'prolific' || $source === 'test'): ?>
+        <div class="alert alert-success mt-4">
+            <strong>Return to Prolific to register your participation.</strong>
+            <p class="mt-2 mb-0">Click the button below. Prolific will record your submission as complete; you do not need to type a code anywhere.</p>
+        </div>
+        <a href="<?= htmlspecialchars($prolific_url) ?>" class="btn btn-primary btn-lg w-100 mt-2">Return to Prolific</a>
+        <p class="text-muted small mt-3">For our internal records, your reference code is <span class="font-monospace"><?= htmlspecialchars($completion_code) ?></span>. You can ignore this unless you need to contact us about your participation.</p>
+    <?php else: ?>
+        <div class="alert alert-success mt-4">
+            <strong>Your completion code:</strong>
+            <div class="fs-4 font-monospace mt-1"><?= htmlspecialchars($completion_code) ?></div>
+            <p class="mt-2 mb-0 small">Use this if you need to contact us about your participation.</p>
+        </div>
     <?php endif; ?>
 
     <p class="text-muted mt-4 small">If you have questions about this study, contact: simo.hosio@oulu.fi</p>
