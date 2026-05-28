@@ -57,17 +57,17 @@ TECHNIQUE (what the person does):
  2 named: a specific named practice (e.g. 'box breathing', 'running')
  3 parameterised: a named practice with defining parameters (e.g. '4-4-4-4 box breathing')
 
-DOSAGE (how much / how often):
- 0 absent: no dosage information
- 1 vague: non-quantified (e.g. 'sometimes', 'when I need it')
- 2 single parameter: one of duration, frequency, or intensity (e.g. '20 minutes' or '3x per week')
- 3 multi parameter: two or more (e.g. '20 min, 3x per week')
+DOSAGE (the magnitude or extent of the practice; technique-conditional, so any quantitative anchor counts equally regardless of which sub-dimension it falls on):
+ 0 absent: no information about magnitude or extent
+ 1 vague: non-quantified (e.g. 'sometimes', 'when I need it', 'a bit')
+ 2 single parameter: any one quantitative anchor of any type, with no preference between sub-dimensions (e.g. '20 minutes', '5 cycles', '3x per week', 'until I feel calmer', '2 km', 'deep slow breaths')
+ 3 multi parameter: two or more quantitative anchors of any type (e.g. '20 min, 3x per week' or '5 cycles with a 4:4 ratio')
 
-MODE (in what form / setting):
- 0 absent: no mode information
- 1 vague: minimal context (e.g. 'by myself', 'at home')
- 2 specified: a clear mode with one qualifier (e.g. 'solo outdoors')
- 3 operationalised: mode plus a delivery mechanism or setting detail (e.g. 'solo outdoors using a meditation app, in a park')
+MODE (how the practice is enacted; technique-conditional, so any clear mode descriptor counts equally regardless of which sub-axis it falls on. MODE does NOT include the situation or trigger in which the practice is used, that is Context and is scored separately):
+ 0 absent: no information about how the practice is enacted
+ 1 vague: minimal detail (e.g. 'by myself', 'with help')
+ 2 specified: a clear mode descriptor of any kind (e.g. 'Solo', 'in a group', 'with an app', 'online', 'unguided')
+ 3 operationalised: mode plus a specific delivery mechanism (e.g. 'Solo using the Headspace app for guidance')
 
 For each dimension return: value (a short phrase capturing what was said, or null if absent), level (integer 0-3 from the rubric), and hint (a short, friendly, OPTIONAL suggestion of what detail could be added; use an empty string when level is 3). Keep hints gentle and never imply the person did something wrong.
 

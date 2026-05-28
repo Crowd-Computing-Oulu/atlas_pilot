@@ -36,7 +36,7 @@ require __DIR__ . '/../templates/header.php';
 
         <div class="mb-4">
             <?php
-            $dims = ['technique' => 'What you do', 'dosage' => 'How much / how often', 'mode' => 'In what way / setting'];
+            $dims = ['technique' => 'What you do', 'dosage' => 'How much', 'mode' => 'In what way'];
             foreach ($dims as $key => $label):
                 $value = $gene[$key]['value'] ?? null;
             ?>

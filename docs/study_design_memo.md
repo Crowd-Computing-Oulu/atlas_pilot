@@ -79,21 +79,27 @@ We do **not** use a "computability threshold" in this paper. The earlier 6/9 thr
 
 ### Dosage Specificity (How much)
 
+D is technique-conditional; the rubric treats any quantitative anchor as equally valid regardless of which sub-dimension it falls on (duration, frequency, intensity, count, distance, threshold, etc.). The proposal's position is that D sub-spaces emerge per technique cluster rather than being globally fixed, so the rubric does not privilege any one sub-axis.
+
 | Level | Label | Description | Example |
 |-------|-------|-------------|---------|
-| 0 | Absent | No dosage information | (none) |
+| 0 | Absent | No information about magnitude or extent | (none) |
 | 1 | Vague | Non-quantified | "sometimes", "when I need it", "a bit" |
-| 2 | Single parameter | One of duration, frequency, or intensity | "20 minutes" or "3x/week" |
-| 3 | Multi-parameter | Two or more | "20 min, 3x/week" or "5 min every morning" |
+| 2 | Single parameter | Any one quantitative anchor of any sub-dimension | "20 minutes", "5 cycles", "3x/week", "until I feel calmer", "deep slow breaths" |
+| 3 | Multi-parameter | Two or more quantitative anchors of any sub-dimension | "20 min, 3x/week"; "5 cycles with a 4:4 ratio"; "5 min every morning, eyes closed" |
 
-### Mode Specificity (In what form)
+### Mode Specificity (How the practice is enacted)
+
+M is technique-conditional; the rubric treats any clear mode descriptor as equally valid regardless of which sub-axis it falls on (sociality, mediation, guidance, environment, etc.). The proposal's position is that M sub-spaces emerge per technique cluster rather than being globally fixed.
+
+**Mode is kept distinct from Context.** Mode captures *how* the practice is enacted (the manner of doing it). It does NOT include the situation or trigger that prompts the practice; that is Context and is collected separately as an exploratory free-text field. The participant-facing wording is plain "in what way" with no sub-axes named, so the rubric measures what participants naturally encode rather than what they were nudged to encode.
 
 | Level | Label | Description | Example |
 |-------|-------|-------------|---------|
-| 0 | Absent | No mode information | (none) |
-| 1 | Vague | Minimal context | "by myself", "at home" |
-| 2 | Specified | Clear mode with one qualifier | "solo outdoors", "with a group in class" |
-| 3 | Operationalised | Mode plus delivery mechanism or setting detail | "solo outdoors using Headspace app, in park near work" |
+| 0 | Absent | No information about how the practice is enacted | (none) |
+| 1 | Vague | Minimal detail | "by myself", "with someone", "with help" |
+| 2 | Specified | A clear mode descriptor of any sub-axis | "Solo", "App-Guided", "in a group class", "online", "unguided" |
+| 3 | Operationalised | Mode plus a specific delivery mechanism | "Solo using the Headspace app for guidance"; "in a group class led by an instructor" |
 
 ---
 

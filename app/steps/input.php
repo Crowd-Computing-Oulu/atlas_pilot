@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Determine which prompt was shown
         $prompt = ($condition === 2)
-            ? 'Think of something you do specifically when you are feeling stressed or anxious to help yourself feel better. Try to describe: what exactly you do, how much or how often, and in what way or setting.'
+            ? 'Think of something you do specifically when you are feeling stressed or anxious to help yourself feel better. Try to describe: what exactly you do, how much, and in what way.'
             : 'Think of something you do specifically when you are feeling stressed or anxious to help yourself feel better. Describe it in your own words. Tell us whatever feels important about what you do.';
 
         if (!$is_test) {
@@ -53,7 +53,7 @@ require __DIR__ . '/../templates/header.php';
     <p class="lead">Think of something you do <strong>specifically when you are feeling stressed or anxious</strong> to help yourself feel better.</p>
 
     <?php if ($condition === 2): ?>
-        <p>Try to describe: <strong>what exactly you do</strong>, <strong>how much or how often</strong>, and <strong>in what way or setting</strong>.</p>
+        <p>Try to describe: <strong>what exactly you do</strong>, <strong>how much</strong>, and <strong>in what way</strong>.</p>
     <?php else: ?>
         <p>Describe it in your own words. Tell us whatever feels important about what you do.</p>
     <?php endif; ?>
