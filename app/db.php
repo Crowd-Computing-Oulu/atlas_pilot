@@ -92,6 +92,9 @@ function init_schema(SQLite3 $db): void {
     add_column_if_missing($db, 'participants', 'pss4_q3', 'INTEGER');
     add_column_if_missing($db, 'participants', 'pss4_q4', 'INTEGER');
     add_column_if_missing($db, 'participants', 'pss4_sum', 'INTEGER');
+    add_column_if_missing($db, 'participants', 'gad2_q1', 'INTEGER');
+    add_column_if_missing($db, 'participants', 'gad2_q2', 'INTEGER');
+    add_column_if_missing($db, 'participants', 'gad2_sum', 'INTEGER');
     add_column_if_missing($db, 'participants', 'rounds_taken', 'INTEGER');
     add_column_if_missing($db, 'gene_extractions', 'gate_decision', 'TEXT');
     add_column_if_missing($db, 'gene_extractions', 'technique_level', 'INTEGER');

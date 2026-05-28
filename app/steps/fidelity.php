@@ -74,11 +74,11 @@ require __DIR__ . '/../templates/header.php';
             <?php endfor; ?>
         </div>
         <div class="likert-endpoints">
-            <span>Not at all</span>
-            <span>Perfectly</span>
+            <span>Not at all well</span>
+            <span>Extremely well</span>
         </div>
 
-        <p class="fw-bold">Did you have to leave out or distort anything important to describe your practice?</p>
+        <p class="fw-bold">Did you leave out key details, or invent or distort anything, to describe your practice?</p>
         <div class="likert-group">
             <?php for ($i = 1; $i <= 7; $i++): ?>
             <label>
@@ -89,12 +89,12 @@ require __DIR__ . '/../templates/header.php';
         </div>
         <div class="likert-endpoints">
             <span>Not at all</span>
-            <span>Very much</span>
+            <span>Quite a bit</span>
         </div>
 
         <div class="mb-4">
-            <label class="form-label">What is missing or wrong? (optional)</label>
-            <textarea class="form-control" name="fidelity_feedback" rows="2"><?= $fill ? htmlspecialchars($syn['fidelity_feedback'] ?? '') : '' ?></textarea>
+            <label class="form-label">If you left out, invented, or distorted anything, briefly explain what and why. (optional)</label>
+            <textarea class="form-control" name="fidelity_feedback" rows="3"><?= $fill ? htmlspecialchars($syn['fidelity_feedback'] ?? '') : '' ?></textarea>
         </div>
 
         <button type="submit" class="btn btn-primary btn-lg w-100">Continue</button>

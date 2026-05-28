@@ -34,12 +34,12 @@ Pilot artefacts use these terms consistently. Earlier drafts used "behavioural g
 
 ### Domain
 
-All participants describe a practice they use **specifically when feeling stressed or anxious**, not as part of their general routine. PSS-4, the four-item brief form (Cohen & Williamson 1988) of the Perceived Stress Scale (Cohen, Kamarck & Mermelstein 1983), administered at intake for sample characterisation only.
+All participants describe a practice they use **specifically when feeling stressed or anxious**, not as part of their general routine. Two brief screeners are administered at intake for sample characterisation only (no eligibility gate, no moderator role): PSS-4 (Cohen & Williamson 1988), the four-item short form of the Perceived Stress Scale (Cohen, Kamarck & Mermelstein 1983), capturing past-month perceived stress (0-16); and GAD-2 (Kroenke et al. 2007), the two-item screener for generalised anxiety, capturing past-two-week anxiety symptoms (0-6). The pairing matches the prompt's stress + anxiety scope.
 
 ### Study Flow (as currently implemented in app)
 
 1. Consent + eligibility
-2. PSS-4 intake (sample characterisation only, descriptive)
+2. PSS-4 + GAD-2 intake (sample characterisation only, descriptive)
 3. Practice description (condition-specific prompt)
 4. [Condition 3 only] AI coach on a single screen: describe, Check (LLM scores T/D/M 0-3 with soft indicators and optional hints), edit and re-check up to 5 times, continue when it feels accurate
 5. Fidelity check: C1/C2 see their raw text back; C3 sees the structured practice

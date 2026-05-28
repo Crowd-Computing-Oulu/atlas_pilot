@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-26 (locked design)
 **Author:** Simo Hosio
-**Status:** LOCKED. Design committed. Implementation tweaks may follow but the study design itself is fixed.
+**Status:** LOCKED. Design committed. Implementation tweaks may follow but the study design itself is fixed. Amended 2026-05-28: added GAD-2 alongside PSS-4 at intake (anxiety half of prompt scope); dropped the kappa >= 0.6 numeric threshold from the rubric pilot in favour of a qualitative refinement target.
 
 ---
 
@@ -42,14 +42,19 @@ All participants describe a practice they use **specifically when feeling stress
 
 Recruited via Prolific (also accessible via open web link, source tracked via PID prefix). No screening on mental health diagnosis or symptom severity.
 
-PSS-4 (Perceived Stress Scale, 4-item; Cohen & Williamson 1988) administered at intake for sample characterisation. Used descriptively, not as eligibility gate, not as moderator in primary analysis.
+Two brief screeners administered at intake for sample characterisation. Used descriptively; no eligibility gate, no role as moderator in analysis. Updated 2026-05-28 to add GAD-2 alongside PSS-4 so the screener pair matches the prompt's stress + anxiety scope.
 
-**Why PSS-4:**
-- ~30 seconds. Minimal burden.
-- Normal-population measure with US/UK normative data; not a clinical screener (sidesteps the ethical question of mental-health screening on Prolific).
-- Free, no licensing.
-- 4 items on a 0-4 scale, summed to 0-16. Higher = more perceived stress in the past month.
-- Limitation: lower internal consistency than PSS-10 (α ≈ 0.6 to 0.72). Acceptable for sample characterisation.
+**PSS-4** (Perceived Stress Scale, 4-item; Cohen & Williamson 1988): past-month perceived stress, scored 0-16 (q2 and q3 reverse-scored).
+
+**GAD-2** (Kroenke et al. 2007): past-two-week anxiety symptoms, scored 0-6, derived from GAD-7. Standard ultra-brief anxiety screener.
+
+**Why both, why brief:**
+- Combined ~45 seconds. Minimal participant burden.
+- Match the prompt scope: PSS-4 alone would leave the anxiety half of the prompt uncharacterised, which a reviewer would catch.
+- Both are normal-population screeners and are not clinical diagnostic tools (sidesteps the ethical question of mental-health screening on Prolific).
+- Both are free, no licensing.
+- PSS-4 psychometric validation in a representative population sample supports the short form for survey administration (Schmalbach et al. 2025); the same paper uses GAD-2 as a convergent validity check on PSS-4, so the pairing is precedented.
+- Limitation: PSS-4 has lower internal consistency than PSS-10 (alpha ~ 0.6 to 0.72); GAD-2 is a screener rather than a diagnostic instrument. Acceptable for sample characterisation only.
 
 ### Sample size
 
@@ -123,7 +128,7 @@ Single screen (description entry and refinement merged). Same unscaffolded promp
 
 **Variable of interest: RoundsTaken (open count) = number of re-checks after the first.** What fraction of descriptions participants judge complete at first check, and how specificity evolves across checks.
 
-**Measurement separation.** The runtime LLM 0-3 scores drive only the coach and are stored as telemetry. The measured specificity DV (all conditions) is post-hoc human (Prolific) raters; LLM-human agreement is reported as a secondary, bounded result. The coaching instrument (LLM) is independent of the measuring instrument (humans), so there is no circularity.
+**Measurement separation.** The runtime LLM 0-3 scores drive only the coach and are stored as telemetry. The measured specificity DV (all conditions) is post-hoc human (Prolific) raters; LLM-human agreement is reported as a bounded comparison. The coaching instrument (LLM) is independent of the measuring instrument (humans), so there is no circularity.
 
 Tests: how does AI-assisted refinement change per-dimension specificity, isolated from textual-scaffolding effects (via the C2 control)?
 
@@ -131,7 +136,7 @@ Tests: how does AI-assisted refinement change per-dimension specificity, isolate
 
 ## Study Flow (as implemented in app)
 
-1. Consent + eligibility + brief PSS-4
+1. Consent + eligibility + PSS-4 + GAD-2
 2. Practice description (C1/C2: condition-specific prompt; C3 merges description and refinement on one screen)
 3. [C3 only] On the same screen: Check (LLM 0-3 scoring with soft indicators and hints), edit and re-check up to 5 times, continue when accurate
 4. Fidelity check: C1 and C2 see their raw text back; C3 sees the structured practice
@@ -143,36 +148,36 @@ Tests: how does AI-assisted refinement change per-dimension specificity, isolate
 
 ## Measures
 
-### Primary DVs
+### DVs
 
-| Measure | Type | Applied to |
-|---------|------|-----------|
-| Per-dimension specificity (T, D, M each 0-3) | Coded by Prolific raters, blind (the measured DV) | All conditions, on final text (C1/C2) and per-check snapshots (C3) |
-| Per-check specificity gain | Telemetry (runtime LLM 0-3) + human coding | C3 |
-| RoundsTaken (open count) | Telemetry | C3 |
+All measures listed together; no formal primary/secondary distinction is used in this pilot.
 
-### Secondary DVs
-
-| Measure | Type | Purpose |
-|---------|------|---------|
-| Semantic fidelity (Likert 1-7) | Self-report | Does the structured/free-text representation capture intent? |
-| Forced-fit (Likert 1-7) | Self-report | Boundary conditions: where does the structure mis-fit? |
-| Sum specificity (T+D+M, 0-9) | Derived | Descriptive composite, no threshold |
-| Time per check | Telemetry (C3) | Effort trajectory |
-| Runtime LLM 0-3 scores per check | Telemetry (C3) | Coaching signal; LLM-human agreement reported |
-| Willingness to contribute (Likert 1-7) | Self-report | Atlas viability signal |
-| Context and outcome triples | Open text | Atlas enrichment |
-| PSS-4 (0-16) | Self-report | Sample characterisation only |
+| Measure | Type | Applied to | Role |
+|---------|------|-----------|------|
+| Per-dimension specificity (T, D, M each 0-3) | Coded by Prolific raters, blind | All conditions, on final text (C1/C2) and per-check snapshots (C3) | Central specificity outcome |
+| Sum specificity (T+D+M, 0-9) | Derived | All conditions | Descriptive composite only, no threshold |
+| RoundsTaken (open count) | Telemetry | C3 | What fraction judge complete at first check vs engage further |
+| Per-check specificity gain | Telemetry (runtime LLM 0-3) + human coding | C3 | Refinement trajectory |
+| Semantic fidelity (Likert 1-7) | Self-report | All conditions | Output-level alignment of displayed representation |
+| Self-reported distortion (Likert 1-7) | Self-report | All conditions | Process-level honesty: did the participant leave out, invent, or distort? Of particular interest in C3 (AI coach may pressure fabrication). Stored in legacy column `forced_fit`. |
+| Distortion open-text ("if you left out, invented, or distorted, explain") | Free text | All conditions | Directed content analysis (Hsieh & Shannon 2005) into pre-specified categories: omission, invention, distortion. Stored in legacy column `fidelity_feedback`. |
+| Time per check | Telemetry | C3 | Effort trajectory |
+| Runtime LLM 0-3 scores per check | Telemetry | C3 | Coaching signal; LLM-human agreement reported as a bounded comparison |
+| Willingness to contribute (Likert 1-7) | Self-report | All conditions | Atlas viability signal |
+| Interest (Likert 1-7) | Self-report | All conditions | Study experience |
+| Context and outcome triples | Open text | All conditions | Atlas enrichment |
+| PSS-4 (0-16) | Self-report at intake | All conditions | Sample characterisation only |
+| GAD-2 (0-6) | Self-report at intake | All conditions | Sample characterisation only |
 
 ---
 
 ## Coding Protocol
 
-### Specificity coding (primary DV)
+### Specificity coding
 
 Two-stage:
 
-1. **Rubric pilot.** Take ~50 sample descriptions (drawn from a small pre-launch dry run, n≈10-15 across conditions). Recruit ~5 Prolific raters per item. Each rater applies the rubric, with worked examples shown inline. Compute pairwise kappa per dimension. **Target: kappa ≥ 0.6 on each dimension.** If below threshold, simplify rubric or add examples and re-pilot. If above, proceed.
+1. **Rubric pilot.** Take ~50 sample descriptions (drawn from a small pre-launch dry run, n≈10-15 across conditions). Recruit ~5 Prolific raters per item. Each rater applies the rubric, with worked examples shown inline. Compute pairwise kappa per dimension as a diagnostic. The pilot is used to refine anchors, sharpen worked examples, and finalise rater training; no fixed kappa threshold gates the move to full coding (numeric thresholds at this scale would be brittle and uninformative). The decision to proceed is qualitative (anchors stable, raters report low ambiguity), with the pilot kappa reported alongside the full-coding kappa in the paper.
 2. **Full coding.** ≥3 Prolific raters per response, blind to condition. Final per-dimension specificity = modal label across raters. Cases with no majority resolved by expert (Hosio). Inter-rater kappa per dimension reported on the full set.
 
 Rubric is operationalised as a decision tree with worked examples per level. Drafted before the rater pilot; locked when the pilot achieves the kappa threshold.
@@ -194,7 +199,7 @@ No public OSF pre-registration. Internal date-stamped analysis plan in `docs/ana
 - Demand-characteristic check: "Did you feel the study was trying to get you to respond in a particular way?"
 - LLM fallback (C3): pre-generated extractions used if the API times out.
 - Bot detection: Prolific native checks plus timing filters.
-- PSS-4 attention: standard quality checks (response variance, time).
+- PSS-4 / GAD-2 attention: standard quality checks (response variance, time).
 
 ---
 
@@ -279,5 +284,9 @@ The app and supporting docs need updates to match the locked design. None are te
 | Douglas et al. (2023) PLOS ONE | Prolific data quality benchmarks | 10.1371/journal.pone.0279720 |
 | Bhattacharjee et al. (2024) CHI | LLM scaffolding for behaviour change | 10.1145/3613904.3642081 |
 | Snow et al. (2008) EMNLP | Crowd annotation matches expert quality with multiple raters | n/a |
-| Cohen, Kamarck, Mermelstein (1983) JHSB | Original Perceived Stress Scale; PSS-4 used in our intake is the brief form derived from this | 10.2307/2136404 |
+| Cohen, Kamarck, Mermelstein (1983) JHSB | Original Perceived Stress Scale; PSS-4 is the brief form derived from this | 10.2307/2136404 |
+| Cohen & Williamson (1988) | Source of the PSS-4 four-item short form (book chapter) | n/a |
+| Schmalbach et al. (2025) Frontiers in Psychology | PSS-4 psychometric evaluation in a representative population sample; uses GAD-2 as convergent validity | 10.3389/fpsyg.2024.1479701 |
+| Kroenke et al. (2007) Annals of Internal Medicine | GAD-2 introduction; ultra-brief anxiety screener used alongside PSS-4 at intake | 10.7326/0003-4819-146-5-200703060-00004 |
+| Braun & Clarke (2006) Qualitative Research in Psychology | Reflexive thematic analysis (applied to fidelity open-text responses) | 10.1191/1478088706qp063oa |
 | West et al. (2023) | ML extraction reality check (F1=0.42) | 10.12688/wellcomeopenres.20000.1 |

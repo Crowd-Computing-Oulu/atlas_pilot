@@ -21,33 +21,58 @@ $pss_options = [
     4 => 'Very often',
 ];
 
+$gad_items = [
+    'gad2_q1' => 'Feeling nervous, anxious, or on edge',
+    'gad2_q2' => 'Not being able to stop or control worrying',
+];
+
+$gad_options = [
+    0 => 'Not at all',
+    1 => 'Several days',
+    2 => 'More than half the days',
+    3 => 'Nearly every day',
+];
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $values = [];
+    $pss_values = [];
+    $gad_values = [];
     $valid = true;
+
     foreach (array_keys($pss_items) as $key) {
-        if (!isset($_POST[$key]) || $_POST[$key] === '') {
-            $valid = false;
-            break;
-        }
+        if (!isset($_POST[$key]) || $_POST[$key] === '') { $valid = false; break; }
         $v = (int)$_POST[$key];
         if ($v < 0 || $v > 4) { $valid = false; break; }
-        $values[$key] = $v;
+        $pss_values[$key] = $v;
+    }
+
+    if ($valid) {
+        foreach (array_keys($gad_items) as $key) {
+            if (!isset($_POST[$key]) || $_POST[$key] === '') { $valid = false; break; }
+            $v = (int)$_POST[$key];
+            if ($v < 0 || $v > 3) { $valid = false; break; }
+            $gad_values[$key] = $v;
+        }
     }
 
     if (!$valid) {
-        $error = 'Please answer all four questions.';
+        $error = 'Please answer all of the questions.';
     } else {
-        // PSS-4 scoring: q2 and q3 are reverse-scored.
-        $sum = $values['pss4_q1'] + (4 - $values['pss4_q2']) + (4 - $values['pss4_q3']) + $values['pss4_q4'];
+        // PSS-4 scoring: q2 and q3 are reverse-scored. Range 0-16.
+        $pss_sum = $pss_values['pss4_q1'] + (4 - $pss_values['pss4_q2']) + (4 - $pss_values['pss4_q3']) + $pss_values['pss4_q4'];
+        // GAD-2 scoring: both items direct. Range 0-6.
+        $gad_sum = $gad_values['gad2_q1'] + $gad_values['gad2_q2'];
 
         if (!$is_test) {
             $db = get_db();
-            $stmt = $db->prepare('UPDATE participants SET pss4_q1 = :q1, pss4_q2 = :q2, pss4_q3 = :q3, pss4_q4 = :q4, pss4_sum = :sum WHERE id = :pid');
-            $stmt->bindValue(':q1', $values['pss4_q1']);
-            $stmt->bindValue(':q2', $values['pss4_q2']);
-            $stmt->bindValue(':q3', $values['pss4_q3']);
-            $stmt->bindValue(':q4', $values['pss4_q4']);
-            $stmt->bindValue(':sum', $sum);
+            $stmt = $db->prepare('UPDATE participants SET pss4_q1 = :p1, pss4_q2 = :p2, pss4_q3 = :p3, pss4_q4 = :p4, pss4_sum = :psum, gad2_q1 = :g1, gad2_q2 = :g2, gad2_sum = :gsum WHERE id = :pid');
+            $stmt->bindValue(':p1', $pss_values['pss4_q1']);
+            $stmt->bindValue(':p2', $pss_values['pss4_q2']);
+            $stmt->bindValue(':p3', $pss_values['pss4_q3']);
+            $stmt->bindValue(':p4', $pss_values['pss4_q4']);
+            $stmt->bindValue(':psum', $pss_sum);
+            $stmt->bindValue(':g1', $gad_values['gad2_q1']);
+            $stmt->bindValue(':g2', $gad_values['gad2_q2']);
+            $stmt->bindValue(':gsum', $gad_sum);
             $stmt->bindValue(':pid', $_SESSION['participant_id']);
             $stmt->execute();
         }
@@ -74,6 +99,9 @@ require __DIR__ . '/../templates/header.php';
     <?php endif; ?>
 
     <form method="post">
+
+        <h6 class="text-muted text-uppercase small mt-2 mb-3">Part 1 &mdash; over the last month</h6>
+
         <?php foreach ($pss_items as $name => $question): ?>
         <div class="mb-4">
             <p class="fw-bold mb-2"><?= htmlspecialchars($question) ?></p>
@@ -81,6 +109,23 @@ require __DIR__ . '/../templates/header.php';
                 <?php foreach ($pss_options as $value => $label): ?>
                 <label class="d-flex align-items-center gap-2">
                     <input type="radio" name="<?= $name ?>" value="<?= $value ?>" required<?= ($fill && ($syn['pss4'][$name] ?? null) === $value) ? ' checked' : '' ?>>
+                    <span><?= htmlspecialchars($label) ?></span>
+                </label>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endforeach; ?>
+
+        <h6 class="text-muted text-uppercase small mt-4 mb-2">Part 2 &mdash; over the last 2 weeks</h6>
+        <p class="text-muted mb-3">How often have you been bothered by the following problems?</p>
+
+        <?php foreach ($gad_items as $name => $question): ?>
+        <div class="mb-4">
+            <p class="fw-bold mb-2"><?= htmlspecialchars($question) ?></p>
+            <div class="d-flex flex-column gap-1">
+                <?php foreach ($gad_options as $value => $label): ?>
+                <label class="d-flex align-items-center gap-2">
+                    <input type="radio" name="<?= $name ?>" value="<?= $value ?>" required<?= ($fill && ($syn['gad2'][$name] ?? null) === $value) ? ' checked' : '' ?>>
                     <span><?= htmlspecialchars($label) ?></span>
                 </label>
                 <?php endforeach; ?>

@@ -330,7 +330,7 @@ $page_title = 'ATLAS Admin';
             <h6>Questionnaire</h6>
             <table class="table table-sm">
                 <tr><td>Semantic Fidelity</td><td><?= $q['semantic_fidelity'] ?>/7</td></tr>
-                <tr><td>Forced Fit</td><td><?= $q['forced_fit'] ?>/7</td></tr>
+                <tr><td>Self-reported Distortion</td><td><?= $q['forced_fit'] ?>/7</td></tr>
                 <tr><td>Willingness to Contribute</td><td><?= $q['willingness'] ?>/7</td></tr>
                 <tr><td>Interest</td><td><?= $q['interest'] ?>/7</td></tr>
                 <tr><td>Context</td><td><?= htmlspecialchars($q['context_text'] ?: '—') ?></td></tr>
