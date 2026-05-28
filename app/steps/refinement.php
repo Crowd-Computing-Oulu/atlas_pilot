@@ -165,18 +165,18 @@ require __DIR__ . '/../templates/header.php';
             <?php endforeach; ?>
 
             <div class="reassure">
-                Stop whenever this feels accurate to you. There is no right answer, and your payment does not depend on these indicators.
+                Refine further or stop whenever this feels accurate to you. There is no right answer, and your payment does not depend on the indicators or on how many times you check.
             </div>
         <?php endif; ?>
 
         <div class="d-flex gap-2">
             <?php if (!$at_cap): ?>
-                <button type="submit" name="action" value="analyse" class="btn <?= $practice ? 'btn-outline-primary' : 'btn-primary' ?> btn-lg flex-fill">
+                <button type="submit" name="action" value="analyse" class="btn btn-primary btn-lg flex-fill">
                     <?= $practice ? 'Check again' : 'Check my description' ?>
                 </button>
             <?php endif; ?>
             <?php if ($analyses >= 1): ?>
-                <button type="submit" name="action" value="continue" class="btn btn-success btn-lg flex-fill">This is accurate, continue</button>
+                <button type="submit" name="action" value="continue" class="btn btn-success btn-lg flex-fill">This is accurate</button>
             <?php endif; ?>
         </div>
     </form>
