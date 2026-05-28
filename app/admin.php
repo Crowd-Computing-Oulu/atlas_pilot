@@ -81,6 +81,55 @@ function fetch_all(SQLite3 $db, string $sql): array {
     return $rows;
 }
 
+// === Descriptive-stats helpers ===
+function arr_clean(array $a): array {
+    return array_values(array_filter($a, fn($v) => $v !== null && $v !== '' && is_numeric($v)));
+}
+function arr_mean(array $a) {
+    $a = arr_clean($a);
+    return $a ? array_sum($a) / count($a) : null;
+}
+function arr_sd(array $a) {
+    $a = arr_clean($a);
+    if (count($a) < 2) return null;
+    $m = array_sum($a) / count($a);
+    $sq = 0;
+    foreach ($a as $v) { $sq += ($v - $m) ** 2; }
+    return sqrt($sq / (count($a) - 1));
+}
+function arr_median(array $a) {
+    $a = arr_clean($a);
+    if (!$a) return null;
+    sort($a);
+    $n = count($a);
+    return $n % 2 ? $a[(int)($n / 2)] : ($a[(int)($n / 2) - 1] + $a[(int)($n / 2)]) / 2;
+}
+function fmt_ms($mean, $sd, $d = 2): string {
+    if ($mean === null) return '—';
+    return number_format($mean, $d) . ($sd !== null ? ' (' . number_format($sd, $d) . ')' : '');
+}
+function fmt_num($v, $d = 2): string {
+    return $v === null ? '—' : number_format($v, $d);
+}
+function fmt_pct($num, $denom): string {
+    return $denom ? round(($num / $denom) * 100) . '%' : '—';
+}
+function pluck(array $rows, string $field): array {
+    $out = [];
+    foreach ($rows as $r) { $out[] = $r[$field] ?? null; }
+    return $out;
+}
+function pss_zerovar(array $r): ?int {
+    $q = [$r['pss4_q1'], $r['pss4_q2'], $r['pss4_q3'], $r['pss4_q4']];
+    if (in_array(null, $q, true)) return null;
+    return count(array_unique($q)) === 1 ? 1 : 0;
+}
+function gad_zerovar(array $r): ?int {
+    $q = [$r['gad2_q1'], $r['gad2_q2']];
+    if (in_array(null, $q, true)) return null;
+    return count(array_unique($q)) === 1 ? 1 : 0;
+}
+
 $page_title = 'ATLAS Admin';
 ?>
 <!DOCTYPE html>
@@ -196,6 +245,228 @@ $page_title = 'ATLAS Admin';
                     <td><div class="bar bg-primary" style="width: <?= $pct ?>%">&nbsp;</div> <?= round($pct) ?>%</td>
                 </tr>
                 <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <?php
+    // === Per-condition descriptive panel ===
+    $desc_rows = fetch_all($db, "
+        SELECT
+            p.id, p.condition_num, p.source,
+            CASE WHEN p.completed_at IS NOT NULL THEN 1 ELSE 0 END AS completed,
+            p.pss4_sum, p.pss4_q1, p.pss4_q2, p.pss4_q3, p.pss4_q4,
+            p.gad2_sum, p.gad2_q1, p.gad2_q2,
+            p.rounds_taken,
+            CASE WHEN p.completed_at IS NOT NULL
+                 THEN (julianday(p.completed_at) - julianday(p.started_at)) * 1440
+                 ELSE NULL END AS minutes_total,
+            q.semantic_fidelity, q.forced_fit AS self_distortion, q.willingness, q.attention_check,
+            (SELECT LENGTH(response_text) FROM responses WHERE participant_id = p.id AND step = 'initial_description' ORDER BY id LIMIT 1) AS init_chars,
+            (SELECT response_text FROM responses WHERE participant_id = p.id AND step = 'initial_description' ORDER BY id LIMIT 1) AS init_text
+        FROM participants p
+        LEFT JOIN questionnaire q ON q.participant_id = p.id
+    ");
+
+    foreach ($desc_rows as &$r) {
+        $r['init_words'] = $r['init_text'] !== null ? str_word_count((string)$r['init_text']) : null;
+        $r['pss_zerovar'] = pss_zerovar($r);
+        $r['gad_zerovar'] = gad_zerovar($r);
+        $r['imc_pass'] = $r['attention_check'] !== null ? ((int)$r['attention_check'] === 1 ? 1 : 0) : null;
+    }
+    unset($r);
+
+    $desc_ext = fetch_all($db, "SELECT participant_id, round, technique_level, dosage_level, mode_level FROM gene_extractions ORDER BY participant_id, round");
+    $ext_first = []; $ext_last = [];
+    foreach ($desc_ext as $e) {
+        $pid = (int)$e['participant_id'];
+        if (!isset($ext_first[$pid])) $ext_first[$pid] = $e;
+        $ext_last[$pid] = $e;
+    }
+
+    // Partition by condition + overall
+    $by_cond = [1 => [], 2 => [], 3 => [], 'all' => []];
+    foreach ($desc_rows as $r) {
+        $c = (int)$r['condition_num'];
+        if (isset($by_cond[$c])) {
+            $by_cond[$c][] = $r;
+            $by_cond['all'][] = $r;
+        }
+    }
+
+    // Build C3-only level/delta lists per condition cell (C1/C2 will be all-null).
+    $level_vals = [];
+    foreach ([1, 2, 3, 'all'] as $cc) {
+        foreach (['technique', 'dosage', 'mode'] as $dim) {
+            $level_vals[$cc]['first_' . $dim] = [];
+            $level_vals[$cc]['last_'  . $dim] = [];
+            $level_vals[$cc]['delta_' . $dim] = [];
+        }
+        foreach ($by_cond[$cc] as $r) {
+            $pid = (int)$r['id'];
+            if (!isset($ext_first[$pid])) continue;
+            foreach (['technique', 'dosage', 'mode'] as $dim) {
+                $f = $ext_first[$pid][$dim . '_level'] ?? null;
+                $l = $ext_last [$pid][$dim . '_level'] ?? null;
+                if ($f !== null) $level_vals[$cc]['first_' . $dim][] = (float)$f;
+                if ($l !== null) $level_vals[$cc]['last_'  . $dim][] = (float)$l;
+                if ($f !== null && $l !== null) $level_vals[$cc]['delta_' . $dim][] = (float)$l - (float)$f;
+            }
+        }
+    }
+
+    // Render helpers (closures over $by_cond / $level_vals).
+    $cells_ms = function (string $field, int $d = 2) use ($by_cond) {
+        $out = '';
+        foreach ([1, 2, 3, 'all'] as $c) {
+            $vals = pluck($by_cond[$c], $field);
+            $out .= '<td>' . fmt_ms(arr_mean($vals), arr_sd($vals), $d) . '</td>';
+        }
+        return $out;
+    };
+    $cells_median = function (string $field, int $d = 1) use ($by_cond) {
+        $out = '';
+        foreach ([1, 2, 3, 'all'] as $c) {
+            $vals = pluck($by_cond[$c], $field);
+            $out .= '<td>' . fmt_num(arr_median($vals), $d) . '</td>';
+        }
+        return $out;
+    };
+    $cells_count = function (callable $pred) use ($by_cond) {
+        $out = '';
+        foreach ([1, 2, 3, 'all'] as $c) {
+            $n = 0;
+            foreach ($by_cond[$c] as $r) if ($pred($r)) $n++;
+            $out .= "<td>{$n}</td>";
+        }
+        return $out;
+    };
+    $cells_count_rate = function (string $count_field, string $denom_field) use ($by_cond) {
+        $out = '';
+        foreach ([1, 2, 3, 'all'] as $c) {
+            $num = 0; $den = 0;
+            foreach ($by_cond[$c] as $r) {
+                if ($r[$denom_field] !== null) {
+                    $den++;
+                    if ((int)$r[$count_field] === 1) $num++;
+                }
+            }
+            $out .= '<td>' . $num . ' / ' . $den . ' (' . fmt_pct($num, $den) . ')</td>';
+        }
+        return $out;
+    };
+    $cells_levels_ms = function (string $key, int $d = 2) use ($level_vals) {
+        $out = '';
+        foreach ([1, 2, 3, 'all'] as $c) {
+            $vals = $level_vals[$c][$key];
+            $out .= '<td>' . fmt_ms(arr_mean($vals), arr_sd($vals), $d) . '</td>';
+        }
+        return $out;
+    };
+    $cells_n = function () use ($by_cond) {
+        $out = '';
+        foreach ([1, 2, 3, 'all'] as $c) $out .= '<td><strong>' . count($by_cond[$c]) . '</strong></td>';
+        return $out;
+    };
+    $cells_completed = function () use ($by_cond) {
+        $out = '';
+        foreach ([1, 2, 3, 'all'] as $c) {
+            $n = count($by_cond[$c]);
+            $done = 0; foreach ($by_cond[$c] as $r) if ((int)$r['completed'] === 1) $done++;
+            $out .= "<td>{$done} (" . fmt_pct($done, $n) . ')</td>';
+        }
+        return $out;
+    };
+    $cells_source = function (string $src) use ($by_cond) {
+        $out = '';
+        foreach ([1, 2, 3, 'all'] as $c) {
+            $n = 0; foreach ($by_cond[$c] as $r) if ($r['source'] === $src) $n++;
+            $out .= "<td>{$n}</td>";
+        }
+        return $out;
+    };
+    $cells_rt_bucket = function ($predicate) use ($by_cond) {
+        $out = '';
+        foreach ([1, 2, 3, 'all'] as $c) {
+            $den = 0; $num = 0;
+            foreach ($by_cond[$c] as $r) {
+                if ($r['rounds_taken'] !== null) {
+                    $den++;
+                    if ($predicate((int)$r['rounds_taken'])) $num++;
+                }
+            }
+            $out .= '<td>' . ($den ? $num . ' (' . fmt_pct($num, $den) . ')' : '—') . '</td>';
+        }
+        return $out;
+    };
+
+    $section = function (string $label) {
+        return "<tr class='table-secondary'><td colspan='5' class='fw-bold'>{$label}</td></tr>";
+    };
+    ?>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="mb-3">Descriptive Statistics by Condition</h5>
+            <p class="text-muted small mb-3">Means with (SD) in parentheses unless noted. "Overall" pools all conditions. C3 telemetry rows are blank for C1 / C2 by design. Rows like "Self-Distortion" are stored in the legacy column <code>forced_fit</code> in the schema.</p>
+            <table class="table table-sm align-middle mb-0">
+                <thead><tr><th style="width:32%">Metric</th><th>C1 Baseline</th><th>C2 Nudge</th><th>C3 AI Coach</th><th>Overall</th></tr></thead>
+                <tbody>
+
+                <?= $section('Sample &amp; drop-off') ?>
+                <tr><td>N assigned</td><?= $cells_n() ?></tr>
+                <tr><td>N completed (rate)</td><?= $cells_completed() ?></tr>
+                <tr><td>Source: Prolific</td><?= $cells_source('prolific') ?></tr>
+                <tr><td>Source: Web</td><?= $cells_source('web') ?></tr>
+                <tr><td>Source: Test</td><?= $cells_source('test') ?></tr>
+
+                <?= $section('Time on task (completed only)') ?>
+                <tr><td>Minutes total, mean (SD)</td><?= $cells_ms('minutes_total', 2) ?></tr>
+                <tr><td>Minutes total, median</td><?= $cells_median('minutes_total', 1) ?></tr>
+
+                <?= $section('Intake screeners (sample characterisation)') ?>
+                <tr><td>PSS-4 sum (0–16), mean (SD)</td><?= $cells_ms('pss4_sum', 2) ?></tr>
+                <tr><td>PSS-4 sum, median</td><?= $cells_median('pss4_sum', 1) ?></tr>
+                <tr><td>PSS-4 zero-variance count</td><?= $cells_count(fn($r) => $r['pss_zerovar'] === 1) ?></tr>
+                <tr><td>GAD-2 sum (0–6), mean (SD)</td><?= $cells_ms('gad2_sum', 2) ?></tr>
+                <tr><td>GAD-2 sum, median</td><?= $cells_median('gad2_sum', 1) ?></tr>
+                <tr><td>GAD-2 zero-variance count</td><?= $cells_count(fn($r) => $r['gad_zerovar'] === 1) ?></tr>
+
+                <?= $section('Initial practice description (free text)') ?>
+                <tr><td>Char count, mean (SD)</td><?= $cells_ms('init_chars', 1) ?></tr>
+                <tr><td>Char count, median</td><?= $cells_median('init_chars', 0) ?></tr>
+                <tr><td>Word count, mean (SD)</td><?= $cells_ms('init_words', 1) ?></tr>
+                <tr><td>Word count, median</td><?= $cells_median('init_words', 0) ?></tr>
+
+                <?= $section('C3 AI-coach telemetry (refinement trajectory)') ?>
+                <tr><td>RoundsTaken, mean (SD)</td><?= $cells_ms('rounds_taken', 2) ?></tr>
+                <tr><td>RoundsTaken, median</td><?= $cells_median('rounds_taken', 1) ?></tr>
+                <tr><td>RoundsTaken = 0 (accepted at first check)</td><?= $cells_rt_bucket(fn($v) => $v === 0) ?></tr>
+                <tr><td>RoundsTaken = 1</td><?= $cells_rt_bucket(fn($v) => $v === 1) ?></tr>
+                <tr><td>RoundsTaken = 2</td><?= $cells_rt_bucket(fn($v) => $v === 2) ?></tr>
+                <tr><td>RoundsTaken ≥ 3</td><?= $cells_rt_bucket(fn($v) => $v >= 3) ?></tr>
+
+                <?= $section('C3 LLM specificity 0–3 (telemetry, not the DV)') ?>
+                <tr><td>Round 0: Technique level, mean (SD)</td><?= $cells_levels_ms('first_technique', 2) ?></tr>
+                <tr><td>Round 0: Dosage level, mean (SD)</td><?= $cells_levels_ms('first_dosage', 2) ?></tr>
+                <tr><td>Round 0: Mode level, mean (SD)</td><?= $cells_levels_ms('first_mode', 2) ?></tr>
+                <tr><td>Final round: Technique level, mean (SD)</td><?= $cells_levels_ms('last_technique', 2) ?></tr>
+                <tr><td>Final round: Dosage level, mean (SD)</td><?= $cells_levels_ms('last_dosage', 2) ?></tr>
+                <tr><td>Final round: Mode level, mean (SD)</td><?= $cells_levels_ms('last_mode', 2) ?></tr>
+                <tr><td>Δ Technique (final − round 0), mean (SD)</td><?= $cells_levels_ms('delta_technique', 2) ?></tr>
+                <tr><td>Δ Dosage (final − round 0), mean (SD)</td><?= $cells_levels_ms('delta_dosage', 2) ?></tr>
+                <tr><td>Δ Mode (final − round 0), mean (SD)</td><?= $cells_levels_ms('delta_mode', 2) ?></tr>
+
+                <?= $section('Fidelity / outcome questionnaire (Likert 1–7)') ?>
+                <tr><td>Semantic Fidelity, mean (SD)</td><?= $cells_ms('semantic_fidelity', 2) ?></tr>
+                <tr><td>Self-Distortion, mean (SD)</td><?= $cells_ms('self_distortion', 2) ?></tr>
+                <tr><td>Willingness (unpaid contribution), mean (SD)</td><?= $cells_ms('willingness', 2) ?></tr>
+
+                <?= $section('Attention check (IMC)') ?>
+                <tr><td>PASS / responded (rate)</td><?= $cells_count_rate('imc_pass', 'attention_check') ?></tr>
+                <tr><td>Raw value, mean (SD)</td><?= $cells_ms('attention_check', 2) ?></tr>
+
                 </tbody>
             </table>
         </div>
