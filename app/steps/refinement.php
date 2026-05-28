@@ -92,10 +92,18 @@ if ($fill && $desc === '') {
     $desc = $syn['description'] ?? '';
 }
 
+// Fixed, dimension-level hint strings. We deliberately do NOT use the LLM's
+// per-response hint text in the UI, because LLM-generated hints drift to
+// technique-specific phrasing (e.g., "how many cycles?" for breathwork vs
+// "how many laps?" for running), which would make C3 participants see
+// different cues than C1/C2 and threaten the cross-condition comparison.
+// These strings mirror the C2 nudge clauses verbatim so every participant
+// who sees a cue sees the same words. The LLM's raw hint field is still
+// captured in raw_llm_response for later inspection.
 $dims = [
-    'technique' => ['title' => 'What you do', 'states' => [0 => 'not mentioned', 1 => 'general type', 2 => 'named', 3 => 'detailed']],
-    'dosage'    => ['title' => 'How much / how often', 'states' => [0 => 'not mentioned', 1 => 'vague', 2 => 'partly specified', 3 => 'detailed']],
-    'mode'      => ['title' => 'In what way / setting', 'states' => [0 => 'not mentioned', 1 => 'general', 2 => 'specified', 3 => 'detailed']],
+    'technique' => ['title' => 'What you do',           'states' => [0 => 'not mentioned', 1 => 'general type',     2 => 'named',             3 => 'detailed'], 'hint' => 'Try naming what exactly you do.'],
+    'dosage'    => ['title' => 'How much / how often',  'states' => [0 => 'not mentioned', 1 => 'vague',            2 => 'partly specified',  3 => 'detailed'], 'hint' => 'Try adding how much or how often.'],
+    'mode'      => ['title' => 'In what way / setting', 'states' => [0 => 'not mentioned', 1 => 'general',          2 => 'specified',         3 => 'detailed'], 'hint' => 'Try adding in what way or setting.'],
 ];
 
 $at_cap = ($analyses >= C3_MAX_ANALYSES);
@@ -143,7 +151,6 @@ require __DIR__ . '/../templates/header.php';
             <h6 class="text-muted mb-3">What the AI picked up so far</h6>
             <?php foreach ($dims as $key => $meta):
                 $level = (int)($practice[$key]['level'] ?? 0);
-                $hint = trim((string)($practice[$key]['hint'] ?? ''));
             ?>
             <div class="dim-row">
                 <div class="dim-head">
@@ -151,8 +158,8 @@ require __DIR__ . '/../templates/header.php';
                     <span class="dim-state"><?= htmlspecialchars($meta['states'][$level] ?? '') ?></span>
                 </div>
                 <div class="dim-track"><div class="dim-bar l<?= $level ?>"></div></div>
-                <?php if ($level < 3 && $hint !== ''): ?>
-                    <div class="dim-hint"><?= htmlspecialchars($hint) ?></div>
+                <?php if ($level < 3): ?>
+                    <div class="dim-hint"><?= htmlspecialchars($meta['hint']) ?></div>
                 <?php endif; ?>
             </div>
             <?php endforeach; ?>

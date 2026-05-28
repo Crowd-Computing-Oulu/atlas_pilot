@@ -5,6 +5,14 @@ require_once __DIR__ . '/synthetic.php';
 
 $step = $_GET['step'] ?? 'consent';
 
+// Admin test / preview entries always start from a clean slate so repeated clicks
+// don't inherit prior walk state (participant_id=-1, condition, step session vars
+// like current_practice / fidelity_data, etc.). Plain Prolific links don't pass
+// test/fill, so this never fires for real participants.
+if ($step === 'consent' && (isset($_GET['test']) || isset($_GET['fill']))) {
+    $_SESSION = [];
+}
+
 // Handle forced condition for testing (e.g., ?condition=2)
 if (isset($_GET['condition']) && $step === 'consent') {
     $_SESSION['forced_condition'] = (int)$_GET['condition'];
