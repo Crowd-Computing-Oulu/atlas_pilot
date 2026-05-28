@@ -168,7 +168,7 @@ All measures listed together; no formal primary/secondary distinction is used in
 | Distortion open-text ("if you left out, invented, or distorted, explain") | Free text | All conditions | Directed content analysis (Hsieh & Shannon 2005) into pre-specified categories: omission, invention, distortion. Stored in legacy column `fidelity_feedback`. |
 | Time per check | Telemetry | C3 | Effort trajectory |
 | Runtime LLM 0-3 scores per check | Telemetry | C3 | Coaching signal; LLM-human agreement reported as a bounded comparison |
-| Willingness to contribute (Likert 1-7) | Self-report | All conditions | Atlas viability signal (collected at end of exploratory step) |
+| Willingness to contribute *without payment* (Likert 1-7) | Self-report | All conditions | Voluntary-contribution signal for the broader citizen atlas. Reframed 2026-05-28 to ask about unpaid contribution because the paid Prolific context would otherwise make a "would you contribute?" item tautological. Collected at end of exploratory step. |
 | Context and outcome triples | Open text | All conditions | Atlas enrichment |
 | PSS-4 (0-16) | Self-report at intake | All conditions | Sample characterisation only |
 | GAD-2 (0-6) | Self-report at intake | All conditions | Sample characterisation only |

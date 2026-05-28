@@ -69,7 +69,7 @@ require __DIR__ . '/../templates/header.php';
         </div>
 
         <div class="mb-4">
-            <p class="fw-bold">How willing would you be to contribute descriptions like this to a public self-care knowledge base?</p>
+            <p class="fw-bold">Without payment, how willing would you be to contribute descriptions like this to a public self-care knowledge base?</p>
             <div class="likert-group">
                 <?php for ($i = 1; $i <= 7; $i++): ?>
                 <label>
