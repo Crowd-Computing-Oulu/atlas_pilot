@@ -84,9 +84,9 @@ app/                        -- PHP web application
   assets/style.css          -- Custom styles
   data/                     -- SQLite database file (GITIGNORED)
 
-docs/
-  study_design_memo.md          -- Locked study design (source of truth)
-  analysis_plan_v1.md           -- Locked, date-stamped internal analysis plan
+docs/                       -- GITIGNORED. Local-only research notes. Do not commit; "just code on GitHub."
+  study_design_memo.md          -- Live study design (treat as draft; update to match the app, not the other way around)
+  analysis_plan_v1.md           -- Live internal analysis plan (also a draft; mirror what the app actually captures)
   ideas_ontology_normalisation.md -- Research notes on practice normalisation (BCTO criteria, GO synonym taxonomy)
   pilot_idea.md.txt             -- SUPERSEDED original concept (kept for history)
 
@@ -106,6 +106,42 @@ Note on internal naming: the database table `gene_extractions` and some PHP vari
 - Frontend: Bootstrap 5 via CDN
 - Hosting: Railway
 - LLM: OpenRouter (anthropic/claude-sonnet-4.6) for Condition 3 only (button-triggered specificity analysis)
+
+## Deploy
+
+**Railway is NOT auto-deployed from GitHub on this project.** The git push to `origin/master` only updates the GitHub mirror; it does not change what's running. To ship code, you must run the Railway CLI separately.
+
+```bash
+# From repo root, with the railway CLI logged in and the project linked.
+railway up --detach
+```
+
+Verify the active deployment with `railway status`. The production URL is `https://atlas-web-production-4c95.up.railway.app/`. A 200 on `/` is the trivial health check; for any DB-schema change, the new column is added by `init_schema()` on the first request after deploy (idempotent `ALTER TABLE` helper in `app/db.php`).
+
+The project is linked to workspace `Simo Hosio's Projects`, project `atlas-pilot`, environment `production`, service `atlas-web`, with a 4.9 GB volume mounted at `/data` for the SQLite database. The volume is the only persistence; deploys do not wipe it.
+
+## App Feature Status
+
+What's wired up in the live app, by step. Read this before asking whether something is implemented. Update this table when you ship or remove a feature.
+
+| Step / Module | Wired in app | Notes |
+|---|---|---|
+| `consent.php` | ✅ | Self-declared eligibility (18+, has-practice, used-in-past-month) as one checkbox. Random condition assignment, completion code minted. No ID verification beyond Prolific PID from the query string. |
+| `intake.php` | ✅ | PSS-4 (4 items, q2/q3 reverse-scored, sum stored) and GAD-2 (2 items, direct, sum stored). All raw item columns persisted on `participants`. |
+| `input.php` | ✅ | Condition-specific prompt (C1 unscaffolded, C2 nudge with "what / how much / in what way"). 10-character minimum on description. No time floor, no plausibility item. |
+| `refinement.php` (C3) | ✅ | Single-screen meter. Check button triggers LLM scoring T/D/M 0-3. Fixed per-dimension hint strings (NOT LLM-generated). At least 1 check required, cap 5. Per-check snapshot + RoundsTaken stored. LLM fallback to pre-generated extraction if API times out. |
+| `fidelity.php` | ✅ | Review screen: C1/C2 see raw text, C3 sees structured practice. SemanticFidelity Likert 1-7, SelfDistortion Likert 1-7 (stored in legacy column `forced_fit`), optional open-text on omission/invention/distortion (stored in legacy column `fidelity_feedback`). |
+| `exploratory.php` | ✅ | Context free text, outcome free text, embedded attention-check IMC (Likert 1-7, pass = "Strongly disagree" = 1), willingness-to-contribute-without-payment Likert 1-7. Persists the full questionnaire row and marks participant complete. |
+| `questionnaire.php` | redirect-only | Merged into `exploratory.php` on 2026-05-28. Still exists as a safety redirect to debrief in case of stale links. |
+| `debrief.php` | ✅ | Completion code shown; Prolific redirect link present for Prolific sessions, return-to-Prolific button shown for test sessions too. |
+| Admin: stats & per-condition breakdown | ✅ | `/admin.php?key=<admin_key>`. |
+| Admin: test links + `?fill=1` preview | ✅ | All 3 conditions; preview auto-fills via `synthetic_preview()` in `app/synthetic.php` with no DB writes. |
+| Admin: participant detail (response chain, extraction trajectory, attention-check pass/fail) | ✅ | |
+| Admin: CSV export, SQLite download | ✅ | |
+| Bot detection | external | Prolific native checks at recruitment + the IMC item above. App does not run independent bot detection. |
+| 90s minimum response time on description | ❌ | Considered, not implemented. Out-of-scope for the launched pilot. |
+| Practice-plausibility follow-up item | ❌ | Considered, not implemented. |
+| Self-reported demand-characteristic item | ❌ | Considered, not implemented. |
 
 ## Admin Dashboard
 
