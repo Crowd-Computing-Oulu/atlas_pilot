@@ -48,10 +48,17 @@ require __DIR__ . '/../templates/header.php';
     <p>We are researchers at the University of Oulu studying how people describe their everyday self-care practices. Your input will help us understand how to build better tools for self-care science.</p>
 
     <h5 class="mt-4">What you'll do</h5>
-    <p>You will describe a practice you use specifically when feeling stressed or anxious, complete a short intake questionnaire, and answer a few questions about your experience. The study takes approximately <strong>10 minutes</strong>.</p>
+    <p>You will describe a practice you use specifically when feeling stressed or anxious, complete a short intake questionnaire, and answer a few questions about your experience.</p>
 
-    <h5 class="mt-4">Your data</h5>
-    <p>Your responses are anonymised and stored securely. They may be used in published research and shared as part of an open dataset. No personally identifying information is collected beyond your Prolific ID (used only for compensation).</p>
+    <h5 class="mt-4">Your data and how we will use it</h5>
+    <p>Your Prolific ID is used only to issue compensation and is kept separate from the released text. What we do with what you write:</p>
+    <ul>
+        <li>Analyse and report results in academic publications.</li>
+        <li>Compute numerical representations (embeddings) of self-care practices, and build interactive tools and visualisations that organise and compare the practices people contribute.</li>
+        <li>Use the text as input to AI systems that help us cluster, label, or compare practices.</li>
+        <li>Release the dataset openly (e.g., on Zenodo or OSF, alongside the paper) so other researchers can reuse it. Once openly released, the dataset can also be used by third parties, including those building AI systems.</li>
+    </ul>
+    <p>Please describe your practice in your own words. <strong>Do not include details that identify you or anyone else</strong> (names, workplaces, contact information). If you accidentally include such details, email <a href="mailto:simo.hosio@oulu.fi">simo.hosio@oulu.fi</a> and we will remove them from any released version.</p>
 
     <?php if (!empty($error)): ?>
         <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
@@ -60,7 +67,7 @@ require __DIR__ . '/../templates/header.php';
     <form method="post" class="mt-4">
         <div class="form-check mb-4">
             <input class="form-check-input" type="checkbox" name="consent" value="1" id="consent"<?= $fill ? ' checked' : '' ?>>
-            <label class="form-check-label" for="consent">I confirm that I am 18 years of age or older, that I have a practice I use specifically when I feel stressed or anxious and have used it in the past month, and that I have read the information above and agree to participate in this study.</label>
+            <label class="form-check-label" for="consent">I confirm that I am 18 years of age or older, that I have a practice I use specifically when I feel stressed or anxious and have used it in the past month, and that I have read the information above (including how my data will be used and released) and agree to participate in this study.</label>
         </div>
 
         <button type="submit" class="btn btn-primary btn-lg w-100">Continue</button>
