@@ -59,7 +59,6 @@ Released on Zenodo/OSF with the paper. Canonical-technique clustering done exper
 Most locked-design code changes have shipped (PSS-4 intake step, C1/C2 stress framing in prompts, single-screen C3 specificity meter with 0-3 telemetry, OpenRouter LLM, Railway deploy, researcher auto-fill preview mode). Remaining items:
 
 - `paper/paper.tex`: `acmart` document class is still `manuscript`; switch to `sigconf` before submission. Venue declaration already names HCOMP 2026.
-- (Optional cleanup) Internal symbols retain legacy "gene" terminology: function names (`extract_gene`, `refine_gene`), session/array variables (`$gene_json`, `$_SESSION['current_practice']` partially renamed), CSS classes (`.gene-card`, `.gene-label`, `.gene-value`, `.gene-missing`), and the `gene_extractions` DB table. None are user-facing.
 
 ## Key Files and Folders
 
@@ -98,7 +97,7 @@ paper/                      -- HCOMP/ACM paper (separate git repo, Overleaf-sync
 
 **Paper workflow:** Do not compile `paper/paper.tex` locally. The paper is Overleaf-synced and compiles there. After editing paper files, just commit and push the paper repo (no local `pdflatex`/`bibtex`).
 
-Note on internal naming: the database table `gene_extractions` and some PHP variables / CSS classes (`$gene`, `.gene-card`) retain the older terminology. They are not user-facing and have been left alone to avoid schema migrations during active development. Renaming is optional cleanup.
+Database tables: `participants`, `responses`, `practice_extractions`, `questionnaire`. Naming follows the current "practice" terminology end to end; the older "gene" symbols have been retired from the codebase.
 
 ## Tech Stack
 

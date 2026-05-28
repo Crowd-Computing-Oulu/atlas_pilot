@@ -11,7 +11,7 @@ body {
     margin-bottom: 1.5rem;
 }
 
-.gene-card {
+.practice-card {
     border: 2px solid #dee2e6;
     border-radius: 8px;
     padding: 1rem 1.25rem;
@@ -19,17 +19,17 @@ body {
     background: #fff;
 }
 
-.gene-card.gene-weak {
+.practice-card.practice-weak {
     border-color: #ffc107;
     background: #fffbf0;
 }
 
-.gene-card.gene-strong {
+.practice-card.practice-strong {
     border-color: #198754;
     background: #f0fdf4;
 }
 
-.gene-label {
+.practice-label {
     font-size: 0.8rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -38,11 +38,11 @@ body {
     margin-bottom: 0.25rem;
 }
 
-.gene-value {
+.practice-value {
     font-size: 1.05rem;
 }
 
-.gene-missing {
+.practice-missing {
     color: #dc3545;
     font-style: italic;
 }

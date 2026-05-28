@@ -36,7 +36,33 @@ function rename_column_if_exists(SQLite3 $db, string $table, string $old, string
     }
 }
 
+function drop_column_if_exists(SQLite3 $db, string $table, string $column): void {
+    $found = false;
+    $result = $db->query("PRAGMA table_info({$table})");
+    while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        if ($row['name'] === $column) { $found = true; break; }
+    }
+    if (!$found) return;
+    try {
+        $db->exec("ALTER TABLE {$table} DROP COLUMN {$column}");
+    } catch (\Exception $e) {
+        // SQLite < 3.35 cannot drop columns. The app stops writing to it; leave orphaned.
+    }
+}
+
+function rename_table_if_exists(SQLite3 $db, string $old, string $new): void {
+    $has_old = $db->querySingle("SELECT name FROM sqlite_master WHERE type='table' AND name='{$old}'") !== null;
+    $has_new = $db->querySingle("SELECT name FROM sqlite_master WHERE type='table' AND name='{$new}'") !== null;
+    if ($has_old && !$has_new) {
+        $db->exec("ALTER TABLE {$old} RENAME TO {$new}");
+    }
+}
+
 function init_schema(SQLite3 $db): void {
+    // Pre-migrate: rename the legacy `gene_extractions` table to `practice_extractions`
+    // before CREATE so we never end up with two tables.
+    rename_table_if_exists($db, 'gene_extractions', 'practice_extractions');
+
     $db->exec("
         CREATE TABLE IF NOT EXISTS participants (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,7 +90,7 @@ function init_schema(SQLite3 $db): void {
             FOREIGN KEY (participant_id) REFERENCES participants(id)
         );
 
-        CREATE TABLE IF NOT EXISTS gene_extractions (
+        CREATE TABLE IF NOT EXISTS practice_extractions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             participant_id INTEGER NOT NULL,
             round INTEGER NOT NULL,
@@ -88,20 +114,19 @@ function init_schema(SQLite3 $db): void {
             semantic_fidelity INTEGER,
             self_distortion INTEGER,
             willingness INTEGER,
-            interest INTEGER,
             context_text TEXT,
             outcome_text TEXT,
             fidelity_feedback TEXT,
-            general_feedback TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (participant_id) REFERENCES participants(id)
         );
     ");
 
-    // Migration: legacy `forced_fit` is the SelfDistortion item; renamed for clarity.
+    // Migrations for existing databases (idempotent).
     rename_column_if_exists($db, 'questionnaire', 'forced_fit', 'self_distortion');
+    drop_column_if_exists($db, 'questionnaire', 'interest');
+    drop_column_if_exists($db, 'questionnaire', 'general_feedback');
 
-    // Migrations for existing databases (idempotent: ALTER TABLE only if column missing)
     add_column_if_missing($db, 'participants', 'pss4_q1', 'INTEGER');
     add_column_if_missing($db, 'participants', 'pss4_q2', 'INTEGER');
     add_column_if_missing($db, 'participants', 'pss4_q3', 'INTEGER');
@@ -111,11 +136,11 @@ function init_schema(SQLite3 $db): void {
     add_column_if_missing($db, 'participants', 'gad2_q2', 'INTEGER');
     add_column_if_missing($db, 'participants', 'gad2_sum', 'INTEGER');
     add_column_if_missing($db, 'participants', 'rounds_taken', 'INTEGER');
-    add_column_if_missing($db, 'gene_extractions', 'gate_decision', 'TEXT');
-    add_column_if_missing($db, 'gene_extractions', 'technique_level', 'INTEGER');
-    add_column_if_missing($db, 'gene_extractions', 'dosage_level', 'INTEGER');
-    add_column_if_missing($db, 'gene_extractions', 'mode_level', 'INTEGER');
-    add_column_if_missing($db, 'gene_extractions', 'description_snapshot', 'TEXT');
+    add_column_if_missing($db, 'practice_extractions', 'gate_decision', 'TEXT');
+    add_column_if_missing($db, 'practice_extractions', 'technique_level', 'INTEGER');
+    add_column_if_missing($db, 'practice_extractions', 'dosage_level', 'INTEGER');
+    add_column_if_missing($db, 'practice_extractions', 'mode_level', 'INTEGER');
+    add_column_if_missing($db, 'practice_extractions', 'description_snapshot', 'TEXT');
     // Embedded instructional-manipulation check on the exploratory step.
     // Raw 1-7 Likert; pass criterion = 1 ("Strongly disagree").
     add_column_if_missing($db, 'questionnaire', 'attention_check', 'INTEGER');

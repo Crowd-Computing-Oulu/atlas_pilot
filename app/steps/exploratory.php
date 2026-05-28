@@ -23,12 +23,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['context_text'])) {
 
     // Persist the full questionnaire row + mark participant complete. The
     // questionnaire step was merged into exploratory on 2026-05-28; the
-    // interest and general_feedback columns are kept in the schema for
-    // backwards compatibility and are written as NULL / empty.
+    // interest and general_feedback columns were dropped from the schema entirely.
     if (!$is_test) {
         $db = get_db();
         $fidelity = $_SESSION['fidelity_data'] ?? [];
-        $stmt = $db->prepare('INSERT INTO questionnaire (participant_id, semantic_fidelity, self_distortion, willingness, attention_check, interest, context_text, outcome_text, fidelity_feedback, general_feedback) VALUES (:pid, :sf, :sd, :w, :ac, NULL, :ctx, :out, :ffb, \'\')');
+        $stmt = $db->prepare('INSERT INTO questionnaire (participant_id, semantic_fidelity, self_distortion, willingness, attention_check, context_text, outcome_text, fidelity_feedback) VALUES (:pid, :sf, :sd, :w, :ac, :ctx, :out, :ffb)');
         $stmt->bindValue(':pid', $_SESSION['participant_id']);
         $stmt->bindValue(':sf',  $fidelity['semantic_fidelity'] ?? null);
         $stmt->bindValue(':sd',  $fidelity['self_distortion'] ?? null);

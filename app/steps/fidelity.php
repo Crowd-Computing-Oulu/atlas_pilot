@@ -18,9 +18,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-// Condition 3 has a structured gene from the refinement step
-$gene = $_SESSION['current_practice'] ?? null;
-$show_gene = ($condition === 3 && $gene);
+// Condition 3 has a structured practice from the refinement step
+$practice = $_SESSION['current_practice'] ?? null;
+$show_practice = ($condition === 3 && $practice);
 
 require __DIR__ . '/../templates/header.php';
 ?>
@@ -30,7 +30,7 @@ require __DIR__ . '/../templates/header.php';
 </div>
 
 <div class="study-card">
-    <?php if ($show_gene): ?>
+    <?php if ($show_practice): ?>
         <h4 class="mb-3">Review Your Practice Description</h4>
         <p>Here's the structured summary from our conversation:</p>
 
@@ -38,15 +38,15 @@ require __DIR__ . '/../templates/header.php';
             <?php
             $dims = ['technique' => 'What you do', 'dosage' => 'How much', 'mode' => 'In what way'];
             foreach ($dims as $key => $label):
-                $value = $gene[$key]['value'] ?? null;
+                $value = $practice[$key]['value'] ?? null;
             ?>
-            <div class="gene-card">
-                <div class="gene-label"><?= $label ?></div>
-                <div class="gene-value">
+            <div class="practice-card">
+                <div class="practice-label"><?= $label ?></div>
+                <div class="practice-value">
                     <?php if ($value): ?>
                         <?= htmlspecialchars($value) ?>
                     <?php else: ?>
-                        <span class="gene-missing">Not captured</span>
+                        <span class="practice-missing">Not captured</span>
                     <?php endif; ?>
                 </div>
             </div>

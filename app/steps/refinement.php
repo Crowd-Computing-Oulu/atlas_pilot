@@ -46,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->bindValue(':text', $desc);
                 $stmt->execute();
 
-                $stmt = $db->prepare('INSERT INTO gene_extractions (participant_id, round, technique, dosage, mode, technique_level, dosage_level, mode_level, description_snapshot, raw_llm_response) VALUES (:pid, :round, :t, :d, :m, :tl, :dl, :ml, :snap, :raw)');
+                $stmt = $db->prepare('INSERT INTO practice_extractions (participant_id, round, technique, dosage, mode, technique_level, dosage_level, mode_level, description_snapshot, raw_llm_response) VALUES (:pid, :round, :t, :d, :m, :tl, :dl, :ml, :snap, :raw)');
                 $stmt->bindValue(':pid', $_SESSION['participant_id']);
                 $stmt->bindValue(':round', $round);
                 $stmt->bindValue(':t', $result['technique']['value']);

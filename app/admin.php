@@ -15,7 +15,7 @@ $base_url = "admin.php?key=" . urlencode($key);
 // Handle exports
 if ($view === 'export') {
     $table = $_GET['table'] ?? '';
-    $allowed = ['participants', 'responses', 'gene_extractions', 'questionnaire'];
+    $allowed = ['participants', 'responses', 'practice_extractions', 'questionnaire'];
     if (!in_array($table, $allowed)) die('Invalid table');
 
     // PHP's SQLite3Result does not have fetchAll(); build rows via fetchArray loop.
@@ -23,8 +23,8 @@ if ($view === 'export') {
         $sql = "SELECT * FROM participants ORDER BY id";
     } elseif ($table === 'responses') {
         $sql = "SELECT r.*, p.prolific_pid, p.condition_num FROM responses r JOIN participants p ON r.participant_id = p.id ORDER BY r.id";
-    } elseif ($table === 'gene_extractions') {
-        $sql = "SELECT g.*, p.prolific_pid, p.condition_num FROM gene_extractions g JOIN participants p ON g.participant_id = p.id ORDER BY g.id";
+    } elseif ($table === 'practice_extractions') {
+        $sql = "SELECT g.*, p.prolific_pid, p.condition_num FROM practice_extractions g JOIN participants p ON g.participant_id = p.id ORDER BY g.id";
     } else {
         $sql = "SELECT q.*, p.prolific_pid, p.condition_num FROM questionnaire q JOIN participants p ON q.participant_id = p.id ORDER BY q.id";
     }
@@ -52,7 +52,7 @@ if ($view === 'export') {
 if ($view === 'delete' && isset($_GET['id'])) {
     $del_id = (int)$_GET['id'];
     $db->exec("DELETE FROM questionnaire WHERE participant_id = {$del_id}");
-    $db->exec("DELETE FROM gene_extractions WHERE participant_id = {$del_id}");
+    $db->exec("DELETE FROM practice_extractions WHERE participant_id = {$del_id}");
     $db->exec("DELETE FROM responses WHERE participant_id = {$del_id}");
     $db->exec("DELETE FROM participants WHERE id = {$del_id}");
     header("Location: {$base_url}&view=overview");
@@ -162,7 +162,7 @@ $page_title = 'ATLAS Admin';
                 <ul class="dropdown-menu">
                     <li><a class="dropdown-item" href="<?= $base_url ?>&view=export&table=participants">Participants CSV</a></li>
                     <li><a class="dropdown-item" href="<?= $base_url ?>&view=export&table=responses">Responses CSV</a></li>
-                    <li><a class="dropdown-item" href="<?= $base_url ?>&view=export&table=gene_extractions">Gene Extractions CSV</a></li>
+                    <li><a class="dropdown-item" href="<?= $base_url ?>&view=export&table=practice_extractions">Practice Extractions CSV</a></li>
                     <li><a class="dropdown-item" href="<?= $base_url ?>&view=export&table=questionnaire">Questionnaire CSV</a></li>
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item" href="<?= $base_url ?>&view=download_db"><strong>Download SQLite DB</strong></a></li>
@@ -277,7 +277,7 @@ $page_title = 'ATLAS Admin';
     }
     unset($r);
 
-    $desc_ext = fetch_all($db, "SELECT participant_id, round, technique_level, dosage_level, mode_level FROM gene_extractions ORDER BY participant_id, round");
+    $desc_ext = fetch_all($db, "SELECT participant_id, round, technique_level, dosage_level, mode_level FROM practice_extractions ORDER BY participant_id, round");
     $ext_first = []; $ext_last = [];
     foreach ($desc_ext as $e) {
         $pid = (int)$e['participant_id'];
@@ -530,7 +530,7 @@ $page_title = 'ATLAS Admin';
     if (!$p) die('Participant not found');
 
     $responses = fetch_all($db, "SELECT * FROM responses WHERE participant_id = {$pid} ORDER BY id");
-    $extractions = fetch_all($db, "SELECT * FROM gene_extractions WHERE participant_id = {$pid} ORDER BY round");
+    $extractions = fetch_all($db, "SELECT * FROM practice_extractions WHERE participant_id = {$pid} ORDER BY round");
     $q = $db->querySingle("SELECT * FROM questionnaire WHERE participant_id = {$pid}", true);
 
     $cond_labels = [1 => 'Baseline', 2 => 'Nudge', 3 => 'AI Coach'];
@@ -566,7 +566,7 @@ $page_title = 'ATLAS Admin';
 
     <div class="card mb-3">
         <div class="card-body">
-            <h6>Gene Extractions (Refinement Trajectory)</h6>
+            <h6>Practice Extractions (Refinement Trajectory)</h6>
             <table class="table table-sm">
                 <thead><tr><th>Round</th><th>Technique (lvl)</th><th>Dosage (lvl)</th><th>Mode (lvl)</th></tr></thead>
                 <tbody>
@@ -606,11 +606,9 @@ $page_title = 'ATLAS Admin';
                     $ac_class = $ac === null ? '' : (((int)$ac === 1) ? 'text-success fw-bold' : 'text-danger fw-bold');
                 ?>
                 <tr><td>Attention Check</td><td class="<?= $ac_class ?>"><?= $ac_label ?></td></tr>
-                <tr><td>Interest</td><td><?= $q['interest'] ?>/7</td></tr>
                 <tr><td>Context</td><td><?= htmlspecialchars($q['context_text'] ?: '—') ?></td></tr>
                 <tr><td>Outcome</td><td><?= htmlspecialchars($q['outcome_text'] ?: '—') ?></td></tr>
                 <tr><td>Fidelity Feedback</td><td><?= htmlspecialchars($q['fidelity_feedback'] ?: '—') ?></td></tr>
-                <tr><td>General Feedback</td><td><?= htmlspecialchars($q['general_feedback'] ?: '—') ?></td></tr>
             </table>
         </div>
     </div>
