@@ -78,7 +78,7 @@ require __DIR__ . '/../templates/header.php';
             <span>Extremely well</span>
         </div>
 
-        <p class="fw-bold">Did you leave out key details, or invent or distort anything, to describe your practice?</p>
+        <p class="fw-bold">How much did you leave out, or invent or distort anything, in describing your practice?</p>
         <div class="likert-group">
             <?php for ($i = 1; $i <= 7; $i++): ?>
             <label>
@@ -88,8 +88,8 @@ require __DIR__ . '/../templates/header.php';
             <?php endfor; ?>
         </div>
         <div class="likert-endpoints">
-            <span>Not at all</span>
-            <span>Quite a bit</span>
+            <span>Not at all much</span>
+            <span>Extremely much</span>
         </div>
 
         <div class="mb-4">
