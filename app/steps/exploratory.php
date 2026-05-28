@@ -16,9 +16,10 @@ if (!empty($_POST['semantic_fidelity']) || !empty($_REQUEST['semantic_fidelity']
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['context_text'])) {
-    $context_text = trim($_POST['context_text'] ?? '');
-    $outcome_text = trim($_POST['outcome_text'] ?? '');
-    $willingness  = (int)($_POST['willingness'] ?? 0);
+    $context_text    = trim($_POST['context_text'] ?? '');
+    $outcome_text    = trim($_POST['outcome_text'] ?? '');
+    $willingness     = (int)($_POST['willingness'] ?? 0);
+    $attention_check = (int)($_POST['attention_check'] ?? 0);
 
     // Persist the full questionnaire row + mark participant complete. The
     // questionnaire step was merged into exploratory on 2026-05-28; the
@@ -27,11 +28,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['context_text'])) {
     if (!$is_test) {
         $db = get_db();
         $fidelity = $_SESSION['fidelity_data'] ?? [];
-        $stmt = $db->prepare('INSERT INTO questionnaire (participant_id, semantic_fidelity, forced_fit, willingness, interest, context_text, outcome_text, fidelity_feedback, general_feedback) VALUES (:pid, :sf, :ff, :w, NULL, :ctx, :out, :ffb, \'\')');
+        $stmt = $db->prepare('INSERT INTO questionnaire (participant_id, semantic_fidelity, forced_fit, willingness, attention_check, interest, context_text, outcome_text, fidelity_feedback, general_feedback) VALUES (:pid, :sf, :ff, :w, :ac, NULL, :ctx, :out, :ffb, \'\')');
         $stmt->bindValue(':pid', $_SESSION['participant_id']);
         $stmt->bindValue(':sf',  $fidelity['semantic_fidelity'] ?? null);
         $stmt->bindValue(':ff',  $fidelity['forced_fit'] ?? null);
         $stmt->bindValue(':w',   $willingness ?: null);
+        $stmt->bindValue(':ac',  $attention_check ?: null);
         $stmt->bindValue(':ctx', $context_text);
         $stmt->bindValue(':out', $outcome_text);
         $stmt->bindValue(':ffb', $fidelity['fidelity_feedback'] ?? '');
@@ -66,6 +68,22 @@ require __DIR__ . '/../templates/header.php';
         <div class="mb-4">
             <label class="form-label fw-bold">What do you typically achieve as an outcome of this practice?</label>
             <textarea class="form-control" name="outcome_text" rows="3" placeholder="Write your answer here..." required><?= $fill ? htmlspecialchars($syn['outcome_text'] ?? '') : '' ?></textarea>
+        </div>
+
+        <div class="mb-4">
+            <p class="fw-bold">Please select &ldquo;Strongly disagree&rdquo; for this item to confirm you are paying attention.</p>
+            <div class="likert-group">
+                <?php for ($i = 1; $i <= 7; $i++): ?>
+                <label>
+                    <input type="radio" name="attention_check" value="<?= $i ?>" required<?= ($fill && ($syn['attention_check'] ?? null) === $i) ? ' checked' : '' ?>>
+                    <?= $i ?>
+                </label>
+                <?php endfor; ?>
+            </div>
+            <div class="likert-endpoints">
+                <span>Strongly disagree</span>
+                <span>Strongly agree</span>
+            </div>
         </div>
 
         <div class="mb-4">

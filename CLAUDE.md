@@ -77,7 +77,7 @@ app/                        -- PHP web application
     input.php               -- Practice description (condition-specific prompt)
     refinement.php          -- C3 single-screen meter: describe + Check (LLM 0-3 scoring) + fixed per-dimension hints (NOT LLM-generated, to avoid technique-specific drift); re-check up to 5; RoundsTaken stored
     fidelity.php            -- Review + semantic_fidelity Likert + self-reported distortion Likert (stored in legacy column `forced_fit`) + optional open-text on omission/invention/distortion
-    exploratory.php         -- Context + outcome + willingness-to-contribute-without-payment Likert (final data step before debrief; persists the full questionnaire row)
+    exploratory.php         -- Context + outcome + embedded attention-check IMC (1-7 Likert, pass = "Strongly disagree") + willingness-to-contribute-without-payment Likert (final data step before debrief; persists the full questionnaire row)
     questionnaire.php       -- Safety redirect to debrief (step merged into exploratory.php on 2026-05-28; interest and general_feedback items dropped)
     debrief.php             -- Completion code + Prolific redirect
   templates/                -- header.php, footer.php (Bootstrap layout)

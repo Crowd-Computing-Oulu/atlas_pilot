@@ -23,6 +23,7 @@ function synthetic_preview(): array {
         'context_text' => "After a stressful work day, or when I cannot fall asleep at night.",
         'outcome_text' => "My heart rate slows down, my mind feels clearer, and I can usually get back to what I was doing.",
         'willingness' => 6,
+        'attention_check' => 1, // "Strongly disagree" = pass for the IMC item.
         'interest' => 6,
         'general_feedback' => "Interesting study, and the AI follow-up questions felt relevant.",
     ];

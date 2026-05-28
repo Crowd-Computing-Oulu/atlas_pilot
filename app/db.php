@@ -101,4 +101,7 @@ function init_schema(SQLite3 $db): void {
     add_column_if_missing($db, 'gene_extractions', 'dosage_level', 'INTEGER');
     add_column_if_missing($db, 'gene_extractions', 'mode_level', 'INTEGER');
     add_column_if_missing($db, 'gene_extractions', 'description_snapshot', 'TEXT');
+    // Embedded instructional-manipulation check on the exploratory step.
+    // Raw 1-7 Likert; pass criterion = 1 ("Strongly disagree").
+    add_column_if_missing($db, 'questionnaire', 'attention_check', 'INTEGER');
 }

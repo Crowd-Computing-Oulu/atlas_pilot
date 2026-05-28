@@ -330,6 +330,12 @@ $page_title = 'ATLAS Admin';
                 <tr><td>Semantic Fidelity</td><td><?= $q['semantic_fidelity'] ?>/7</td></tr>
                 <tr><td>Self-reported Distortion</td><td><?= $q['forced_fit'] ?>/7</td></tr>
                 <tr><td>Willingness to Contribute</td><td><?= $q['willingness'] ?>/7</td></tr>
+                <?php
+                    $ac = $q['attention_check'] ?? null;
+                    $ac_label = $ac === null ? 'n/a' : (((int)$ac === 1) ? "PASS ({$ac}/7)" : "FAIL ({$ac}/7)");
+                    $ac_class = $ac === null ? '' : (((int)$ac === 1) ? 'text-success fw-bold' : 'text-danger fw-bold');
+                ?>
+                <tr><td>Attention Check</td><td class="<?= $ac_class ?>"><?= $ac_label ?></td></tr>
                 <tr><td>Interest</td><td><?= $q['interest'] ?>/7</td></tr>
                 <tr><td>Context</td><td><?= htmlspecialchars($q['context_text'] ?: '—') ?></td></tr>
                 <tr><td>Outcome</td><td><?= htmlspecialchars($q['outcome_text'] ?: '—') ?></td></tr>
