@@ -419,7 +419,6 @@ $page_title = 'ATLAS Admin';
                 <tr><td>N completed (rate)</td><?= $cells_completed() ?></tr>
                 <tr><td>Source: Prolific</td><?= $cells_source('prolific') ?></tr>
                 <tr><td>Source: Web</td><?= $cells_source('web') ?></tr>
-                <tr><td>Source: Test</td><?= $cells_source('test') ?></tr>
 
                 <?= $section('Time on task (completed only)') ?>
                 <tr><td>Minutes total, mean (SD)</td><?= $cells_ms('minutes_total', 2) ?></tr>
