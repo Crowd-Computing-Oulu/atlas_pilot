@@ -11,7 +11,7 @@ $condition = $_SESSION['condition'];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $_SESSION['fidelity_data'] = [
         'semantic_fidelity' => (int)($_POST['semantic_fidelity'] ?? 0),
-        'forced_fit' => (int)($_POST['forced_fit'] ?? 0),
+        'self_distortion' => (int)($_POST['self_distortion'] ?? 0),
         'fidelity_feedback' => trim($_POST['fidelity_feedback'] ?? ''),
     ];
     header('Location: ?step=exploratory');
@@ -82,7 +82,7 @@ require __DIR__ . '/../templates/header.php';
         <div class="likert-group">
             <?php for ($i = 1; $i <= 7; $i++): ?>
             <label>
-                <input type="radio" name="forced_fit" value="<?= $i ?>" required<?= ($fill && ($syn['forced_fit'] ?? null) === $i) ? ' checked' : '' ?>>
+                <input type="radio" name="self_distortion" value="<?= $i ?>" required<?= ($fill && ($syn['self_distortion'] ?? null) === $i) ? ' checked' : '' ?>>
                 <?= $i ?>
             </label>
             <?php endfor; ?>

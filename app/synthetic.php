@@ -18,7 +18,7 @@ function synthetic_preview(): array {
         'description' => "When I feel stressed or anxious I do 4-7-8 breathing: I breathe in through my nose for 4 seconds, hold for 7, and exhale slowly through my mouth for 8. I repeat this for about five cycles, sitting alone in my room with the lights dimmed, usually a couple of times during a stressful day.",
         'refinement_response' => "I usually do it for about five minutes, two or three times a day, and I use a meditation app to time the breaths.",
         'semantic_fidelity' => 6,
-        'forced_fit' => 2,
+        'self_distortion' => 2,
         'fidelity_feedback' => "The summary captured my practice well.",
         'context_text' => "After a stressful work day, or when I cannot fall asleep at night.",
         'outcome_text' => "My heart rate slows down, my mind feels clearer, and I can usually get back to what I was doing.",

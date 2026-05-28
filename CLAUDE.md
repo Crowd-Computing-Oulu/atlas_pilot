@@ -76,7 +76,7 @@ app/                        -- PHP web application
     intake.php              -- PSS-4 (4 items, q2/q3 reverse-scored, sum stored)
     input.php               -- Practice description (condition-specific prompt)
     refinement.php          -- C3 single-screen meter: describe + Check (LLM 0-3 scoring) + fixed per-dimension hints (NOT LLM-generated, to avoid technique-specific drift); re-check up to 5; RoundsTaken stored
-    fidelity.php            -- Review + semantic_fidelity Likert + self-reported distortion Likert (stored in legacy column `forced_fit`) + optional open-text on omission/invention/distortion
+    fidelity.php            -- Review + semantic_fidelity Likert + self_distortion Likert + optional open-text on omission/invention/distortion
     exploratory.php         -- Context + outcome + embedded attention-check IMC (1-7 Likert, pass = "Strongly disagree") + willingness-to-contribute-without-payment Likert (final data step before debrief; persists the full questionnaire row)
     questionnaire.php       -- Safety redirect to debrief (step merged into exploratory.php on 2026-05-28; interest and general_feedback items dropped)
     debrief.php             -- Completion code + Prolific redirect
@@ -130,7 +130,7 @@ What's wired up in the live app, by step. Read this before asking whether someth
 | `intake.php` | ✅ | PSS-4 (4 items, q2/q3 reverse-scored, sum stored) and GAD-2 (2 items, direct, sum stored). All raw item columns persisted on `participants`. |
 | `input.php` | ✅ | Condition-specific prompt (C1 unscaffolded, C2 nudge with "what / how much / in what way"). 10-character minimum on description. No time floor, no plausibility item. |
 | `refinement.php` (C3) | ✅ | Single-screen meter. Check button triggers LLM scoring T/D/M 0-3. Fixed per-dimension hint strings (NOT LLM-generated). At least 1 check required, cap 5. Per-check snapshot + RoundsTaken stored. LLM fallback to pre-generated extraction if API times out. |
-| `fidelity.php` | ✅ | Review screen: C1/C2 see raw text, C3 sees structured practice. SemanticFidelity Likert 1-7, SelfDistortion Likert 1-7 (stored in legacy column `forced_fit`), optional open-text on omission/invention/distortion (stored in legacy column `fidelity_feedback`). |
+| `fidelity.php` | ✅ | Review screen: C1/C2 see raw text, C3 sees structured practice. SemanticFidelity Likert 1-7, SelfDistortion Likert 1-7 (column `self_distortion`), optional open-text on omission/invention/distortion (column `fidelity_feedback`). |
 | `exploratory.php` | ✅ | Context free text, outcome free text, embedded attention-check IMC (Likert 1-7, pass = "Strongly disagree" = 1), willingness-to-contribute-without-payment Likert 1-7. Persists the full questionnaire row and marks participant complete. |
 | `questionnaire.php` | redirect-only | Merged into `exploratory.php` on 2026-05-28. Still exists as a safety redirect to debrief in case of stale links. |
 | `debrief.php` | ✅ | Completion code shown; Prolific redirect link present for Prolific sessions, return-to-Prolific button shown for test sessions too. |

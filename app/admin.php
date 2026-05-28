@@ -262,7 +262,7 @@ $page_title = 'ATLAS Admin';
             CASE WHEN p.completed_at IS NOT NULL
                  THEN (julianday(p.completed_at) - julianday(p.started_at)) * 1440
                  ELSE NULL END AS minutes_total,
-            q.semantic_fidelity, q.forced_fit AS self_distortion, q.willingness, q.attention_check,
+            q.semantic_fidelity, q.self_distortion, q.willingness, q.attention_check,
             (SELECT LENGTH(response_text) FROM responses WHERE participant_id = p.id AND step = 'initial_description' ORDER BY id LIMIT 1) AS init_chars,
             (SELECT response_text FROM responses WHERE participant_id = p.id AND step = 'initial_description' ORDER BY id LIMIT 1) AS init_text
         FROM participants p
@@ -409,14 +409,14 @@ $page_title = 'ATLAS Admin';
     <div class="card mb-4">
         <div class="card-body">
             <h5 class="mb-3">Descriptive Statistics by Condition</h5>
-            <p class="text-muted small mb-3">Means with (SD) in parentheses unless noted. "Overall" pools all conditions. C3 telemetry rows are blank for C1 / C2 by design. Rows like "Self-Distortion" are stored in the legacy column <code>forced_fit</code> in the schema.</p>
+            <p class="text-muted small mb-3">Means with (SD) in parentheses unless noted. "Overall" pools all conditions. C3 telemetry rows are blank for C1 / C2 by design.</p>
             <table class="table table-sm align-middle mb-0">
                 <thead><tr><th style="width:32%">Metric</th><th>C1 Baseline</th><th>C2 Nudge</th><th>C3 AI Coach</th><th>Overall</th></tr></thead>
                 <tbody>
 
                 <?= $section('Sample &amp; drop-off') ?>
                 <tr><td>N assigned</td><?= $cells_n() ?></tr>
-                <tr><td>N completed (rate)</td><?= $cells_completed() ?></tr>
+                <tr><td>N completed (% of assigned)</td><?= $cells_completed() ?></tr>
                 <tr><td>Source: Prolific</td><?= $cells_source('prolific') ?></tr>
                 <tr><td>Source: Web</td><?= $cells_source('web') ?></tr>
 
@@ -598,7 +598,7 @@ $page_title = 'ATLAS Admin';
             <h6>Questionnaire</h6>
             <table class="table table-sm">
                 <tr><td>Semantic Fidelity</td><td><?= $q['semantic_fidelity'] ?>/7</td></tr>
-                <tr><td>Self-reported Distortion</td><td><?= $q['forced_fit'] ?>/7</td></tr>
+                <tr><td>Self-reported Distortion</td><td><?= $q['self_distortion'] ?>/7</td></tr>
                 <tr><td>Willingness to Contribute</td><td><?= $q['willingness'] ?>/7</td></tr>
                 <?php
                     $ac = $q['attention_check'] ?? null;

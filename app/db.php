@@ -24,6 +24,18 @@ function add_column_if_missing(SQLite3 $db, string $table, string $column, strin
     $db->exec("ALTER TABLE {$table} ADD COLUMN {$column} {$definition}");
 }
 
+function rename_column_if_exists(SQLite3 $db, string $table, string $old, string $new): void {
+    $has_old = false; $has_new = false;
+    $result = $db->query("PRAGMA table_info({$table})");
+    while ($row = $result->fetchArray(SQLITE3_ASSOC)) {
+        if ($row['name'] === $old) $has_old = true;
+        if ($row['name'] === $new) $has_new = true;
+    }
+    if ($has_old && !$has_new) {
+        $db->exec("ALTER TABLE {$table} RENAME COLUMN {$old} TO {$new}");
+    }
+}
+
 function init_schema(SQLite3 $db): void {
     $db->exec("
         CREATE TABLE IF NOT EXISTS participants (
@@ -74,7 +86,7 @@ function init_schema(SQLite3 $db): void {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             participant_id INTEGER NOT NULL,
             semantic_fidelity INTEGER,
-            forced_fit INTEGER,
+            self_distortion INTEGER,
             willingness INTEGER,
             interest INTEGER,
             context_text TEXT,
@@ -85,6 +97,9 @@ function init_schema(SQLite3 $db): void {
             FOREIGN KEY (participant_id) REFERENCES participants(id)
         );
     ");
+
+    // Migration: legacy `forced_fit` is the SelfDistortion item; renamed for clarity.
+    rename_column_if_exists($db, 'questionnaire', 'forced_fit', 'self_distortion');
 
     // Migrations for existing databases (idempotent: ALTER TABLE only if column missing)
     add_column_if_missing($db, 'participants', 'pss4_q1', 'INTEGER');

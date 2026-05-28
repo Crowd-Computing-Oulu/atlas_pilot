@@ -10,7 +10,7 @@ if (!isset($_SESSION['participant_id'])) {
 if (!empty($_POST['semantic_fidelity']) || !empty($_REQUEST['semantic_fidelity'])) {
     $_SESSION['fidelity_data'] = [
         'semantic_fidelity' => (int)($_REQUEST['semantic_fidelity'] ?? 0),
-        'forced_fit' => (int)($_REQUEST['forced_fit'] ?? 0),
+        'self_distortion' => (int)($_REQUEST['self_distortion'] ?? 0),
         'fidelity_feedback' => $_REQUEST['fidelity_feedback'] ?? '',
     ];
 }
@@ -28,10 +28,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['context_text'])) {
     if (!$is_test) {
         $db = get_db();
         $fidelity = $_SESSION['fidelity_data'] ?? [];
-        $stmt = $db->prepare('INSERT INTO questionnaire (participant_id, semantic_fidelity, forced_fit, willingness, attention_check, interest, context_text, outcome_text, fidelity_feedback, general_feedback) VALUES (:pid, :sf, :ff, :w, :ac, NULL, :ctx, :out, :ffb, \'\')');
+        $stmt = $db->prepare('INSERT INTO questionnaire (participant_id, semantic_fidelity, self_distortion, willingness, attention_check, interest, context_text, outcome_text, fidelity_feedback, general_feedback) VALUES (:pid, :sf, :sd, :w, :ac, NULL, :ctx, :out, :ffb, \'\')');
         $stmt->bindValue(':pid', $_SESSION['participant_id']);
         $stmt->bindValue(':sf',  $fidelity['semantic_fidelity'] ?? null);
-        $stmt->bindValue(':ff',  $fidelity['forced_fit'] ?? null);
+        $stmt->bindValue(':sd',  $fidelity['self_distortion'] ?? null);
         $stmt->bindValue(':w',   $willingness ?: null);
         $stmt->bindValue(':ac',  $attention_check ?: null);
         $stmt->bindValue(':ctx', $context_text);
