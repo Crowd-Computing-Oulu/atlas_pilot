@@ -22,9 +22,9 @@ Three-condition between-subjects online experiment (target N≥300) on Prolific.
 |-----------|---------------------|---------------|
 | **1. Pure Baseline** (n≥100) | Describe a practice in free text, no hints | Natural per-dimension specificity (T, D, M) |
 | **2. Textual Nudge** (n≥100) | Same free text + a clause-level prompt hinting at "what you do, how much, in what way" | Whether a minimal verbal nudge moves people up the specificity scale |
-| **3. AI Coach** (n≥100) | Free text, then up to 2 rounds of AI dialogue with a confirmation gate after each extraction (early exit if the AI got it right first time) | Refinement trajectory; how often free text is already complete |
+| **3. AI Coach** (n≥100) | Free text on a single screen with an on-demand "Check my description" button; an LLM scores each dimension 0-3 and surfaces three soft indicators with fixed per-dimension hints. Participants self-edit and re-check, generous cap of 5 (at least one check required, no forced threshold). | Refinement trajectory; how often free text is already complete at first check (RoundsTaken open count is itself a DV) |
 
-PSS-4 (Cohen & Williamson 1988) administered at intake for sample characterisation.
+PSS-4 (Cohen & Williamson 1988) and GAD-2 (Kroenke et al. 2007) administered at intake for sample characterisation (no eligibility gate, no moderator role). The pairing matches the prompt's stress + anxiety scope.
 
 ## Key Measurement
 
@@ -39,7 +39,7 @@ Per-dimension specificity coded on a 0-3 scale (absent → category → named �
 
 - PHP + SQLite
 - Bootstrap frontend
-- Claude API for Condition 3 real-time extraction + refinement
+- OpenRouter (OpenAI-compatible API; frozen on `anthropic/claude-sonnet-4.6`) for the Condition 3 button-triggered scoring
 - Hosted on Railway
 
 ## Documents

@@ -228,7 +228,7 @@ Power analysis reported retrospectively at submission.
 ### HCOMP paper contributions, ordered by HCOMP pillars
 
 1. **Complementarity (lead).** AI-assisted refinement increases per-dimension specificity from baseline level X to level Y, isolated from textual-scaffolding effects via the no-AI nudge control. The increase concentrates on [dimensions]; on [other dimensions], AI refinement adds little beyond what a textual nudge already provides. RoundsTaken distribution shows what fraction of free-text descriptions are participant-judged as already complete at first check.
-2. **Alignment / fidelity.** Across refinement rounds, semantic-fidelity ratings show [pattern]; forced-fit ratings show [pattern]. The AI's extracted practice preserves participant intent on [dimensions] but distorts on [dimensions]. We characterise where AI-extracted structure aligns with self-report and where it diverges.
+2. **Alignment / fidelity.** Across conditions, semantic-fidelity ratings show [pattern]; self-reported-distortion ratings (the omission / invention / distortion honesty item) show [pattern]. The AI's extracted practice preserves participant intent on [dimensions] but pressures fabrication on [dimensions]. We characterise where AI-extracted structure aligns with self-report and where it diverges.
 3. **Dataset (Human Contributions to AI).** A v0.1 seed practice atlas for stress and anxiety coping: N canonical practices contributed by Prolific participants under three scaffolding regimes, with primitive-level frequencies, per-dimension specificity profiles, and self-reported context-outcome triples.
 
 ### Seed Practice Atlas (v0.1)

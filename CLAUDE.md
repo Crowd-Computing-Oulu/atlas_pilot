@@ -30,7 +30,7 @@ Pilot artefacts use these terms consistently. Earlier drafts used "behavioural g
 - **Condition 2 (Textual nudge):** Free text with verbal hints toward "what you do, how much, in what way." No AI. Tests whether minimal prompting increases specificity.
 - **Condition 3 (AI coach):** Single screen. Free text (same prompt as C1) with a "Check my description" button that runs one LLM analysis scoring each dimension 0-3 against the rubric and showing soft per-dimension indicators plus optional hints. The participant edits their own narrative and re-checks (generous cap of 5), continuing whenever it feels accurate (no forced threshold; at least one check required so the AI treatment is always delivered). The LLM scores and hints but never rewrites the text. **RoundsTaken = number of re-checks after the first (open count)** is a primary variable of interest.
 
-**Key difference:** Conditions 1-2 have NO AI interaction during the study. Only Condition 3 involves live AI. **The measured specificity DV for ALL conditions is post-hoc human (Prolific) raters** (rubric pilot to kappa ≥ 0.6), not the LLM. In C3 the runtime LLM 0-3 scores drive the coach and are stored as telemetry; LLM-human agreement is reported post-hoc (a bounded limitation, not the result). Canonical-technique clustering for the atlas is done expert-style by Hosio + 1 coauthor.
+**Key difference:** Conditions 1-2 have NO AI interaction during the study. Only Condition 3 involves live AI. **The measured specificity DV for ALL conditions is post-hoc human (Prolific) raters** (rubric pilot used to refine anchors and rater training; no numeric kappa threshold gates the move to full coding), not the LLM. In C3 the runtime LLM 0-3 scores drive the coach and are stored as telemetry; LLM-human agreement is reported post-hoc as a bounded comparison. Canonical-technique clustering for the atlas is done expert-style by Hosio + 1 coauthor.
 
 ### Domain
 
@@ -75,10 +75,10 @@ app/                        -- PHP web application
     consent.php             -- Consent + eligibility + condition assignment
     intake.php              -- PSS-4 (4 items, q2/q3 reverse-scored, sum stored)
     input.php               -- Practice description (condition-specific prompt)
-    refinement.php          -- C3 single-screen meter: describe + Check (LLM 0-3 scoring) + hints; re-check up to 5; RoundsTaken stored
-    fidelity.php            -- Review + semantic_fidelity + forced_fit Likerts + optional feedback
-    exploratory.php         -- Context + outcome free-text fields
-    questionnaire.php       -- Willingness + interest Likerts + optional general feedback
+    refinement.php          -- C3 single-screen meter: describe + Check (LLM 0-3 scoring) + fixed per-dimension hints (NOT LLM-generated, to avoid technique-specific drift); re-check up to 5; RoundsTaken stored
+    fidelity.php            -- Review + semantic_fidelity Likert + self-reported distortion Likert (stored in legacy column `forced_fit`) + optional open-text on omission/invention/distortion
+    exploratory.php         -- Context + outcome + willingness-to-contribute-without-payment Likert (final data step before debrief; persists the full questionnaire row)
+    questionnaire.php       -- Safety redirect to debrief (step merged into exploratory.php on 2026-05-28; interest and general_feedback items dropped)
     debrief.php             -- Completion code + Prolific redirect
   templates/                -- header.php, footer.php (Bootstrap layout)
   assets/style.css          -- Custom styles
