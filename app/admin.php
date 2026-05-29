@@ -55,7 +55,8 @@ if ($view === 'delete' && isset($_GET['id'])) {
     $db->exec("DELETE FROM practice_extractions WHERE participant_id = {$del_id}");
     $db->exec("DELETE FROM responses WHERE participant_id = {$del_id}");
     $db->exec("DELETE FROM participants WHERE id = {$del_id}");
-    header("Location: {$base_url}&view=overview");
+    $return_view = ($_GET['return'] ?? '') === 'participants' ? 'participants' : 'overview';
+    header("Location: {$base_url}&view={$return_view}");
     exit;
 }
 
@@ -504,7 +505,7 @@ $page_title = 'ATLAS Admin';
         <div class="card-body">
             <h5>All Participants (<?= count($participants) ?>)</h5>
             <table class="table table-sm table-hover">
-                <thead><tr><th>ID</th><th>PID</th><th>Source</th><th>Condition</th><th>Started</th><th>Completed</th><th>Code</th></tr></thead>
+                <thead><tr><th>ID</th><th>PID</th><th>Source</th><th>Condition</th><th>Started</th><th>Completed</th><th>Code</th><th></th></tr></thead>
                 <tbody>
                 <?php foreach ($participants as $p): ?>
                 <tr style="cursor:pointer" onclick="window.location='<?= $base_url ?>&view=detail&id=<?= $p['id'] ?>'">
@@ -515,6 +516,7 @@ $page_title = 'ATLAS Admin';
                     <td><?= $p['started_at'] ?></td>
                     <td><?= $p['completed_at'] ?: '—' ?></td>
                     <td><code><?= htmlspecialchars($p['completion_code']) ?></code></td>
+                    <td onclick="event.stopPropagation()"><a href="<?= $base_url ?>&view=delete&id=<?= $p['id'] ?>" onclick="return confirm('Delete all data for participant #<?= $p['id'] ?>?')" title="Delete participant and all data" class="text-danger text-decoration-none">&#128465;</a></td>
                 </tr>
                 <?php endforeach; ?>
                 </tbody>
@@ -536,7 +538,10 @@ $page_title = 'ATLAS Admin';
     $cond_labels = [1 => 'Baseline', 2 => 'Nudge', 3 => 'AI Coach'];
     ?>
 
-    <a href="<?= $base_url ?>&view=participants" class="btn btn-sm btn-outline-secondary mb-3">&larr; Back</a>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <a href="<?= $base_url ?>&view=participants" class="btn btn-sm btn-outline-secondary">&larr; Back</a>
+        <a href="<?= $base_url ?>&view=delete&id=<?= $p['id'] ?>&return=participants" onclick="return confirm('Delete all data for participant #<?= $p['id'] ?>?')" class="btn btn-sm btn-outline-danger">&#128465; Delete participant</a>
+    </div>
 
     <div class="card mb-3">
         <div class="card-body">
