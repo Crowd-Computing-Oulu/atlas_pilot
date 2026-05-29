@@ -15,10 +15,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $_SESSION['description'] = $description;
 
-        // Determine which prompt was shown
+        // Determine which prompt was shown. C2 = C1 + one extra nudge sentence,
+        // so the only between-condition difference is the nudge itself.
         $prompt = ($condition === 2)
-            ? 'Think of something you do specifically when you are feeling stressed or anxious to help yourself feel better. Try to describe: what exactly you do, how much, and in what way.'
-            : 'Think of something you do specifically when you are feeling stressed or anxious to help yourself feel better. Describe it in your own words. Tell us whatever feels important about what you do.';
+            ? 'Think of something you do specifically when you are feeling stressed or anxious to help yourself feel better. Describe it in your own words. Try to describe what exactly you do, how much, and in what way.'
+            : 'Think of something you do specifically when you are feeling stressed or anxious to help yourself feel better. Describe it in your own words.';
 
         if (!$is_test) {
             $db = get_db();
@@ -52,10 +53,10 @@ require __DIR__ . '/../templates/header.php';
 
     <p class="lead">Think of something you do <strong>specifically when you are feeling stressed or anxious</strong> to help yourself feel better.</p>
 
+    <p>Describe it in your own words.</p>
+
     <?php if ($condition === 2): ?>
-        <p>Try to describe: <strong>what exactly you do</strong>, <strong>how much</strong>, and <strong>in what way</strong>.</p>
-    <?php else: ?>
-        <p>Describe it in your own words. Tell us whatever feels important about what you do.</p>
+        <p>Try to describe <strong>what exactly you do</strong>, <strong>how much</strong>, and <strong>in what way</strong>.</p>
     <?php endif; ?>
 
     <?php if (!empty($error)): ?>

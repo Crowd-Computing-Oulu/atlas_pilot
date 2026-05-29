@@ -8,7 +8,7 @@ if (!isset($_SESSION['participant_id']) || ($_SESSION['condition'] ?? 0) !== 3) 
 }
 
 const C3_MAX_ANALYSES = 5;
-$prompt_text = 'Think of something you do specifically when you are feeling stressed or anxious to help yourself feel better. Describe it in your own words. Tell us whatever feels important about what you do.';
+$prompt_text = 'Think of something you do specifically when you are feeling stressed or anxious to help yourself feel better. Describe it in your own words.';
 
 $analyses = (int)($_SESSION['c3_analyses'] ?? 0);
 $practice = $_SESSION['current_practice'] ?? null;
@@ -138,7 +138,7 @@ require __DIR__ . '/../templates/header.php';
 <div class="study-card">
     <h4 class="mb-3">Your Practice</h4>
     <p class="lead">Think of something you do <strong>specifically when you are feeling stressed or anxious</strong> to help yourself feel better.</p>
-    <p>Describe it in your own words. Tell us whatever feels important about what you do. When you are ready, use <strong>Check my description</strong> to see what an AI assistant picked up, and add detail if you like.</p>
+    <p>Describe it in your own words. When you are ready, use <strong>Check my description</strong> to see what an AI assistant picked up, and add detail if you like.</p>
 
     <?php if (!empty($error)): ?>
         <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
