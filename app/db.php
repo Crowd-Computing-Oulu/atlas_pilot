@@ -144,4 +144,38 @@ function init_schema(SQLite3 $db): void {
     // Embedded instructional-manipulation check on the exploratory step.
     // Raw 1-7 Likert; pass criterion = 1 ("Strongly disagree").
     add_column_if_missing($db, 'questionnaire', 'attention_check', 'INTEGER');
+
+    // Post-hoc specificity coding facility (crowd raters via Prolific Taskflow +
+    // optional multi-model LLM coding). One coding_task = one blinded text to score
+    // on the T/D/M 0-3 rubric. Each coding row holds one rater's (human or model) scores.
+    $db->exec("
+        CREATE TABLE IF NOT EXISTS coding_tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            token TEXT UNIQUE NOT NULL,
+            participant_id INTEGER NOT NULL,
+            condition_num INTEGER NOT NULL,
+            text_role TEXT NOT NULL,          -- 'single' | 'c3_first' | 'c3_final'
+            text_content TEXT NOT NULL,
+            target_raters INTEGER NOT NULL DEFAULT 2,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (participant_id, text_role),
+            FOREIGN KEY (participant_id) REFERENCES participants(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS codings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            task_id INTEGER NOT NULL,
+            source TEXT NOT NULL,             -- 'human' | model slug (e.g. 'anthropic/claude-sonnet-4.6')
+            rater_pid TEXT,                   -- Prolific PID for humans; null for models
+            session_id TEXT,
+            technique INTEGER,                -- 0-3
+            dosage INTEGER,                   -- 0-3
+            mode INTEGER,                     -- 0-3
+            notes TEXT,
+            raw_llm_response TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (task_id) REFERENCES coding_tasks(id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_codings_task ON codings(task_id);
+    ");
 }

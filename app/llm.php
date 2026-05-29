@@ -1,10 +1,10 @@
 <?php
 
-function call_claude(string $system_prompt, string $user_message): ?array {
+function call_claude(string $system_prompt, string $user_message, ?string $model = null): ?array {
     $config = require __DIR__ . '/config.php';
 
     $payload = json_encode([
-        'model' => $config['llm_model'],
+        'model' => $model ?: $config['llm_model'],
         'max_tokens' => 1024,
         'messages' => [
             ['role' => 'system', 'content' => $system_prompt],
@@ -46,7 +46,7 @@ function call_claude(string $system_prompt, string $user_message): ?array {
  * rewrites it. Returns per-dimension {value, level (0-3), hint} plus _raw, or null
  * if the call/parse fails.
  */
-function analyse_practice(string $description): ?array {
+function analyse_practice(string $description, ?string $model = null): ?array {
     $system = "You analyse a free-text description of a self-care practice that a person uses specifically when feeling stressed or anxious. You score how specifically the text encodes three dimensions, using the rubric below. You do NOT rewrite, improve, or add to the person's text. You only assess what is already there, and where a dimension is below the top level you offer one short, optional suggestion of what kind of detail could be added.
 
 Dimensions and 0-3 specificity levels:
@@ -78,7 +78,7 @@ Respond ONLY with valid JSON in exactly this format:
   \"mode\": {\"value\": \"...\", \"level\": 0, \"hint\": \"...\"}
 }";
 
-    $result = call_claude($system, "Description: " . $description);
+    $result = call_claude($system, "Description: " . $description, $model);
     if (!$result) return null;
 
     $json_match = [];

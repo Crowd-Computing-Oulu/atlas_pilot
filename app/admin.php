@@ -72,6 +72,140 @@ if ($view === 'download_db') {
     exit;
 }
 
+// === Coding facility: which participants/texts get coded ===
+const CODING_PILOT_IDS = [6, 7, 8, 9, 10, 11]; // soft-launch pilot rows, excluded from the analysis set
+
+function coding_initial_text(SQLite3 $db, int $pid): ?string {
+    $s = $db->prepare("SELECT response_text FROM responses WHERE participant_id=:p AND step='initial_description' ORDER BY id LIMIT 1");
+    $s->bindValue(':p', $pid, SQLITE3_INTEGER);
+    $r = $s->execute()->fetchArray(SQLITE3_ASSOC);
+    return $r ? $r['response_text'] : null;
+}
+
+function coding_c3_text(SQLite3 $db, int $pid, string $which): ?string {
+    // round 0 snapshot is the initial text; max round is the final edited text.
+    $order = $which === 'first' ? 'ASC' : 'DESC';
+    $s = $db->prepare("SELECT description_snapshot FROM practice_extractions
+                       WHERE participant_id=:p AND description_snapshot IS NOT NULL AND TRIM(description_snapshot)!=''
+                       ORDER BY round {$order} LIMIT 1");
+    $s->bindValue(':p', $pid, SQLITE3_INTEGER);
+    $r = $s->execute()->fetchArray(SQLITE3_ASSOC);
+    if ($r && trim((string)$r['description_snapshot']) !== '') return $r['description_snapshot'];
+    return coding_initial_text($db, $pid); // fallback if snapshots were not captured
+}
+
+function coding_models(array $config): array {
+    $m = $config['coding_models'] ?? null;
+    if (is_array($m) && $m) return $m;
+    return [$config['llm_model']]; // default: just the live model; add OpenRouter slugs in config['coding_models']
+}
+
+// Seed coding tasks from the analysis set (completed Prolific participants, pilot excluded).
+if ($view === 'coding_seed') {
+    $excl = implode(',', CODING_PILOT_IDS);
+    $valid = [];
+    $res = $db->query("SELECT id, condition_num FROM participants
+                       WHERE source='prolific' AND completed_at IS NOT NULL AND id NOT IN ({$excl}) ORDER BY id");
+    while ($row = $res->fetchArray(SQLITE3_ASSOC)) { $valid[] = $row; }
+
+    $created = 0;
+    foreach ($valid as $p) {
+        $pid = (int)$p['id'];
+        $cond = (int)$p['condition_num'];
+        $tasks = $cond === 3
+            ? [['c3_first', coding_c3_text($db, $pid, 'first')], ['c3_final', coding_c3_text($db, $pid, 'final')]]
+            : [['single', coding_initial_text($db, $pid)]];
+        foreach ($tasks as [$role, $text]) {
+            if ($text === null || trim($text) === '') continue;
+            $ins = $db->prepare("INSERT OR IGNORE INTO coding_tasks (token, participant_id, condition_num, text_role, text_content)
+                                 VALUES (:tok, :pid, :c, :role, :txt)");
+            $ins->bindValue(':tok', bin2hex(random_bytes(8)), SQLITE3_TEXT);
+            $ins->bindValue(':pid', $pid, SQLITE3_INTEGER);
+            $ins->bindValue(':c', $cond, SQLITE3_INTEGER);
+            $ins->bindValue(':role', $role, SQLITE3_TEXT);
+            $ins->bindValue(':txt', $text, SQLITE3_TEXT);
+            $ins->execute();
+            if ($db->changes() > 0) $created++;
+        }
+    }
+    header("Location: {$base_url}&view=coding&seeded={$created}");
+    exit;
+}
+
+// Export the unique task URLs for Prolific Taskflow (one URL per row).
+if ($view === 'coding_csv') {
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $base = $config['app_base_url'] ?? ($scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost'));
+    $base = rtrim($base, '/');
+    header('Content-Type: text/csv');
+    header('Content-Disposition: attachment; filename=taskflow_urls_' . date('Y-m-d') . '.csv');
+    $out = fopen('php://output', 'w');
+    // Explicit escape '' = standard CSV (no legacy backslash escaping) and silences
+    // the PHP 8.4 deprecation that otherwise leaks a warning into the output stream.
+    fputcsv($out, ['url'], ',', '"', '');
+    $res = $db->query("SELECT token FROM coding_tasks ORDER BY id");
+    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
+        fputcsv($out, [$base . '/code.php?task=' . $row['token']], ',', '"', '');
+    }
+    fclose($out);
+    exit;
+}
+
+// Batch LLM coding: code up to N uncoded (task, model) pairs, then return to the dashboard.
+if ($view === 'coding_llm') {
+    @set_time_limit(0);
+    require_once __DIR__ . '/llm.php';
+    $models = coding_models($config);
+    $budget = max(1, min(60, (int)($_GET['n'] ?? 10)));
+    $coded = 0; $failed = 0;
+    foreach ($models as $model) {
+        if ($budget <= 0) break;
+        $sel = $db->prepare("SELECT t.id, t.text_content FROM coding_tasks t
+                             WHERE NOT EXISTS (SELECT 1 FROM codings c WHERE c.task_id = t.id AND c.source = :m)
+                             ORDER BY t.id LIMIT :lim");
+        $sel->bindValue(':m', $model, SQLITE3_TEXT);
+        $sel->bindValue(':lim', $budget, SQLITE3_INTEGER);
+        $pending = [];
+        $r = $sel->execute();
+        while ($row = $r->fetchArray(SQLITE3_ASSOC)) { $pending[] = $row; }
+        foreach ($pending as $row) {
+            if ($budget <= 0) break;
+            $budget--;
+            $parsed = analyse_practice($row['text_content'], $model);
+            if (!$parsed) { $failed++; continue; }
+            $ins = $db->prepare("INSERT INTO codings (task_id, source, technique, dosage, mode, raw_llm_response)
+                                 VALUES (:tid, :m, :t, :d, :mo, :raw)");
+            $ins->bindValue(':tid', $row['id'], SQLITE3_INTEGER);
+            $ins->bindValue(':m', $model, SQLITE3_TEXT);
+            $ins->bindValue(':t', (int)$parsed['technique']['level'], SQLITE3_INTEGER);
+            $ins->bindValue(':d', (int)$parsed['dosage']['level'], SQLITE3_INTEGER);
+            $ins->bindValue(':mo', (int)$parsed['mode']['level'], SQLITE3_INTEGER);
+            $ins->bindValue(':raw', $parsed['_raw'] ?? null, SQLITE3_TEXT);
+            $ins->execute();
+            $coded++;
+        }
+    }
+    header("Location: {$base_url}&view=coding&llm_coded={$coded}&llm_failed={$failed}");
+    exit;
+}
+
+// Delete a single coding (rating).
+if ($view === 'coding_delete' && isset($_GET['cid'])) {
+    $cid = (int)$_GET['cid'];
+    $db->exec("DELETE FROM codings WHERE id = {$cid}");
+    header("Location: {$base_url}&view=coding");
+    exit;
+}
+
+// Clear all codings from one source (a model run, or 'human').
+if ($view === 'coding_clear_source' && isset($_GET['src'])) {
+    $stmt = $db->prepare("DELETE FROM codings WHERE source = :s");
+    $stmt->bindValue(':s', $_GET['src'], SQLITE3_TEXT);
+    $stmt->execute();
+    header("Location: {$base_url}&view=coding");
+    exit;
+}
+
 // Helper to run a query and fetch all rows
 function fetch_all(SQLite3 $db, string $sql): array {
     $result = $db->query($sql);
@@ -158,6 +292,7 @@ $page_title = 'ATLAS Admin';
         <div>
             <a href="<?= $base_url ?>&view=overview" class="btn btn-sm <?= $view === 'overview' ? 'btn-primary' : 'btn-outline-primary' ?>">Overview</a>
             <a href="<?= $base_url ?>&view=participants" class="btn btn-sm <?= $view === 'participants' ? 'btn-primary' : 'btn-outline-primary' ?>">Participants</a>
+            <a href="<?= $base_url ?>&view=coding" class="btn btn-sm <?= $view === 'coding' ? 'btn-primary' : 'btn-outline-primary' ?>">Coding</a>
             <div class="btn-group">
                 <button type="button" class="btn btn-sm btn-outline-success dropdown-toggle" data-bs-toggle="dropdown">Export</button>
                 <ul class="dropdown-menu">
@@ -618,6 +753,115 @@ $page_title = 'ATLAS Admin';
         </div>
     </div>
     <?php endif; ?>
+
+<?php elseif ($view === 'coding'): ?>
+    <?php
+    $ct_total = (int)$db->querySingle("SELECT COUNT(*) FROM coding_tasks");
+    $roles = fetch_all($db, "SELECT condition_num, text_role, COUNT(*) n FROM coding_tasks GROUP BY condition_num, text_role ORDER BY condition_num, text_role");
+    $cov = fetch_all($db, "SELECT (SELECT COUNT(*) FROM codings c WHERE c.task_id=t.id AND c.source='human') h FROM coding_tasks t");
+    $h1 = 0; $h2 = 0;
+    foreach ($cov as $c) { if ((int)$c['h'] >= 1) $h1++; if ((int)$c['h'] >= 2) $h2++; }
+    $human_total = (int)$db->querySingle("SELECT COUNT(*) FROM codings WHERE source='human'");
+    $models = coding_models($config);
+    $model_counts = [];
+    foreach (fetch_all($db, "SELECT source, COUNT(*) n FROM codings WHERE source!='human' GROUP BY source") as $m) {
+        $model_counts[$m['source']] = (int)$m['n'];
+    }
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $app_base = $config['app_base_url'] ?? ($scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost'));
+    $sample = $db->querySingle("SELECT token FROM coding_tasks ORDER BY id LIMIT 1");
+    ?>
+
+    <?php if (isset($_GET['seeded'])): ?><div class="alert alert-success">Seeded <?= (int)$_GET['seeded'] ?> new coding task(s).</div><?php endif; ?>
+    <?php if (isset($_GET['llm_coded'])): ?><div class="alert alert-info">LLM coded <?= (int)$_GET['llm_coded'] ?> task(s); <?= (int)($_GET['llm_failed'] ?? 0) ?> failed.</div><?php endif; ?>
+
+    <div class="card mb-3"><div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">Specificity Coding</h5>
+            <div>
+                <a href="<?= $base_url ?>&view=coding_seed" onclick="return confirm('Build coding tasks from the 300 completed Prolific participants? Existing tasks are kept (idempotent).')" class="btn btn-sm btn-primary">Seed tasks</a>
+                <a href="<?= $base_url ?>&view=coding_csv" class="btn btn-sm btn-outline-success">Export Taskflow CSV</a>
+            </div>
+        </div>
+
+        <table class="table table-sm w-auto">
+            <tr><td>Total coding tasks</td><td><strong><?= $ct_total ?></strong></td></tr>
+            <tr><td>Tasks with ≥1 human rating</td><td><?= $h1 ?> / <?= $ct_total ?> (<?= fmt_pct($h1, $ct_total) ?>)</td></tr>
+            <tr><td>Tasks with ≥2 human ratings (target met)</td><td><?= $h2 ?> / <?= $ct_total ?> (<?= fmt_pct($h2, $ct_total) ?>)</td></tr>
+            <tr><td>Total human ratings collected</td><td><?= $human_total ?></td></tr>
+        </table>
+
+        <?php if ($ct_total === 0): ?>
+            <p class="text-muted">No tasks yet. Click <strong>Seed tasks</strong> to build them from the analysis set (C1/C2 → 1 text each; C3 → first + final snapshots).</p>
+        <?php else: ?>
+            <h6 class="mt-3">Tasks by condition and role</h6>
+            <table class="table table-sm w-auto">
+                <thead><tr><th>Condition</th><th>Role</th><th>Tasks</th></tr></thead>
+                <?php foreach ($roles as $r): ?>
+                    <tr><td>C<?= (int)$r['condition_num'] ?></td><td><?= htmlspecialchars($r['text_role']) ?></td><td><?= (int)$r['n'] ?></td></tr>
+                <?php endforeach; ?>
+            </table>
+            <p class="small text-muted">Sample task URL for Taskflow: <code><?= htmlspecialchars($app_base . '/code.php?task=' . $sample) ?></code><br>
+            Upload the exported CSV to Taskflow and set the per-task allocation (e.g. 2) for two independent raters per text.</p>
+        <?php endif; ?>
+    </div></div>
+
+    <div class="card mb-3"><div class="card-body">
+        <h6>Multi-model LLM coding</h6>
+        <p class="small text-muted mb-2">Codes each task against the same 0–3 rubric the humans use, once per configured model, for the LLM–human agreement analysis. Runs in restartable batches to avoid timeouts.</p>
+        <table class="table table-sm w-auto">
+            <thead><tr><th>Model</th><th>Tasks coded</th><th>Remaining</th></tr></thead>
+            <?php foreach ($models as $m): $done = $model_counts[$m] ?? 0; ?>
+                <tr>
+                    <td><code><?= htmlspecialchars($m) ?></code></td>
+                    <td><?= $done ?></td>
+                    <td><?= max(0, $ct_total - $done) ?></td>
+                    <td><?php if ($done > 0): ?><a href="<?= $base_url ?>&view=coding_clear_source&src=<?= htmlspecialchars(urlencode($m)) ?>" onclick="return confirm('Delete all <?= htmlspecialchars($done) ?> ratings from this model?')" class="text-danger small">clear</a><?php endif; ?></td>
+                </tr>
+            <?php endforeach; ?>
+        </table>
+        <?php if ($ct_total > 0): ?>
+            <a href="<?= $base_url ?>&view=coding_llm&n=10" class="btn btn-sm btn-outline-primary">Code next 10</a>
+            <a href="<?= $base_url ?>&view=coding_llm&n=40" class="btn btn-sm btn-outline-primary">Code next 40</a>
+        <?php endif; ?>
+        <p class="small text-muted mt-2 mb-0">Configure additional models with <code>'coding_models' =&gt; ['anthropic/claude-sonnet-4.6', '&lt;openrouter-slug&gt;', ...]</code> in <code>config.php</code>. Currently using <?= count($models) ?> model(s).</p>
+    </div></div>
+
+    <?php
+    $all_codings = fetch_all($db, "SELECT c.id, c.source, c.rater_pid, c.technique, c.dosage, c.mode, c.created_at,
+                                          t.participant_id, t.condition_num, t.text_role
+                                   FROM codings c JOIN coding_tasks t ON t.id = c.task_id
+                                   ORDER BY c.id DESC");
+    ?>
+    <div class="card mb-3"><div class="card-body">
+        <h6>All ratings (<?= count($all_codings) ?>)</h6>
+        <?php if (!$all_codings): ?>
+            <p class="text-muted small mb-0">No ratings collected yet.</p>
+        <?php else: ?>
+            <div style="max-height: 420px; overflow:auto;">
+            <table class="table table-sm table-hover">
+                <thead><tr><th>#</th><th>P</th><th>Cond</th><th>Role</th><th>Source</th><th>Rater</th><th>T</th><th>D</th><th>M</th><th>When</th><th></th></tr></thead>
+                <tbody>
+                <?php foreach ($all_codings as $c): ?>
+                    <tr>
+                        <td><?= (int)$c['id'] ?></td>
+                        <td><?= (int)$c['participant_id'] ?></td>
+                        <td>C<?= (int)$c['condition_num'] ?></td>
+                        <td><?= htmlspecialchars($c['text_role']) ?></td>
+                        <td><?= $c['source'] === 'human' ? 'human' : '<code>'.htmlspecialchars($c['source']).'</code>' ?></td>
+                        <td class="small"><?= htmlspecialchars($c['rater_pid'] ?? '—') ?></td>
+                        <td><?= $c['technique'] ?></td>
+                        <td><?= $c['dosage'] ?></td>
+                        <td><?= $c['mode'] ?></td>
+                        <td class="small text-muted"><?= htmlspecialchars($c['created_at']) ?></td>
+                        <td><a href="<?= $base_url ?>&view=coding_delete&cid=<?= (int)$c['id'] ?>" onclick="return confirm('Delete rating #<?= (int)$c['id'] ?>?')" class="text-danger text-decoration-none" title="Delete this rating">&#128465;</a></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+            </div>
+        <?php endif; ?>
+    </div></div>
 
 <?php endif; ?>
 
