@@ -53,11 +53,7 @@ require __DIR__ . '/../templates/header.php';
 
     <p class="lead">Think of something you do <strong>specifically when you are feeling stressed or anxious</strong> to help yourself feel better.</p>
 
-    <p>Describe it in your own words.</p>
-
-    <?php if ($condition === 2): ?>
-        <p>Try to describe <strong>what exactly you do</strong>, <strong>how much</strong>, and <strong>in what way</strong>.</p>
-    <?php endif; ?>
+    <p>Describe it in your own words.<?php if ($condition === 2): ?> Try to describe <strong>what exactly you do</strong>, <strong>how much</strong>, and <strong>in what way</strong>.<?php endif; ?></p>
 
     <?php if (!empty($error)): ?>
         <div class="alert alert-danger"><?= htmlspecialchars($error) ?></div>
