@@ -104,7 +104,7 @@ if (!$task):
     </div>
     <?php
 elseif ($done || $already):
-    $return_url = $config['coding_completion_url'] ?? $config['prolific_completion_url'] ?? 'https://app.prolific.com/submissions/complete';
+    $return_url = ($config['coding_completion_url'] ?? '') ?: (($config['prolific_completion_url'] ?? '') ?: 'https://app.prolific.com/submissions/complete');
     ?>
     <div class="study-card">
         <h4 class="mb-3">Thank you!</h4>

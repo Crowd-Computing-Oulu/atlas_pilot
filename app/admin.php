@@ -135,7 +135,7 @@ if ($view === 'coding_seed') {
 // Export the unique task URLs for Prolific Taskflow (one URL per row).
 if ($view === 'coding_csv') {
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $base = $config['app_base_url'] ?? ($scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost'));
+    $base = ($config['app_base_url'] ?? '') ?: ($scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost'));
     $base = rtrim($base, '/');
     header('Content-Type: text/csv');
     header('Content-Disposition: attachment; filename=taskflow_urls_' . date('Y-m-d') . '.csv');
@@ -768,7 +768,7 @@ $page_title = 'ATLAS Admin';
         $model_counts[$m['source']] = (int)$m['n'];
     }
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $app_base = $config['app_base_url'] ?? ($scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost'));
+    $app_base = rtrim(($config['app_base_url'] ?? '') ?: ($scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')), '/');
     $sample = $db->querySingle("SELECT token FROM coding_tasks ORDER BY id LIMIT 1");
     ?>
 
