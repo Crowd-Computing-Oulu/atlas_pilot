@@ -28,7 +28,7 @@ if ($view === 'export') {
     } elseif ($table === 'codings') {
         // One row per rating (human or model), tied back to participant/condition/practice.
         $sql = "SELECT c.id AS coding_id, c.task_id, t.token, t.participant_id, p.prolific_pid, t.condition_num, t.text_role,
-                       c.source, c.rater_pid, c.technique, c.dosage, c.mode, c.technique_count, c.notes, c.created_at
+                       c.source, c.rater_pid, c.technique, c.dosage, c.mode, c.technique_count, c.coding_seconds, c.notes, c.created_at
                 FROM codings c
                 JOIN coding_tasks t ON t.id = c.task_id
                 JOIN participants p ON p.id = t.participant_id

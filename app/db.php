@@ -172,6 +172,7 @@ function init_schema(SQLite3 $db): void {
             dosage INTEGER,                   -- 0-3
             mode INTEGER,                     -- 0-3
             technique_count INTEGER,          -- distinct techniques in the report (1, 2, 3=3+)
+            coding_seconds INTEGER,           -- humans: server-side seconds from task render to submit (best-effort)
             notes TEXT,
             raw_llm_response TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -181,4 +182,6 @@ function init_schema(SQLite3 $db): void {
     ");
     // Migration for DBs whose codings table predates the multiplicity count.
     add_column_if_missing($db, 'codings', 'technique_count', 'INTEGER');
+    // Migration for DBs predating server-side rating-duration capture.
+    add_column_if_missing($db, 'codings', 'coding_seconds', 'INTEGER');
 }

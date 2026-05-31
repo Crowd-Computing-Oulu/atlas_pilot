@@ -16,6 +16,14 @@ require_once __DIR__ . '/db.php';
 $db = get_db();
 $config = require __DIR__ . '/config.php';
 
+// Server-side rating-duration capture. The form carries a render timestamp signed
+// with the app secret so a rater cannot forge a slower-looking time. Best-effort:
+// a missing or invalid signature just yields a null duration, never a blocked submit.
+$timing_secret = (string)($config['admin_key'] ?? '');
+function timing_sig(int $t, string $token, string $secret): string {
+    return hash_hmac('sha256', $t . '|' . $token, $secret);
+}
+
 $token = $_GET['task'] ?? '';
 $pid = $_GET['PROLIFIC_PID'] ?? ($_POST['pid'] ?? '');
 $session_id = $_GET['SESSION_ID'] ?? ($_POST['session_id'] ?? '');
@@ -137,9 +145,21 @@ if ($task && $_SERVER['REQUEST_METHOD'] === 'POST' && ($preview || !$already)) {
         $preview_vals = $vals;
         $done = true;
     } elseif (!$error) {
+        // Best-effort task duration: server time from render to submit, only if the
+        // signed render timestamp validates and the delta is sane (0..24h).
+        $coding_seconds = null;
+        $rat = $_POST['rendered_at'] ?? '';
+        $rsig = (string)($_POST['rendered_sig'] ?? '');
+        if ($timing_secret !== '' && ctype_digit((string)$rat)
+            && hash_equals(timing_sig((int)$rat, $token, $timing_secret), $rsig)) {
+            $delta = time() - (int)$rat;
+            if ($delta >= 0 && $delta < 86400) {
+                $coding_seconds = $delta;
+            }
+        }
         $ins = $db->prepare(
-            "INSERT INTO codings (task_id, source, rater_pid, session_id, technique, dosage, mode, technique_count)
-             VALUES (:tid, 'human', :pid, :sid, :t, :d, :m, :tc)"
+            "INSERT INTO codings (task_id, source, rater_pid, session_id, technique, dosage, mode, technique_count, coding_seconds)
+             VALUES (:tid, 'human', :pid, :sid, :t, :d, :m, :tc, :cs)"
         );
         $ins->bindValue(':tid', $task['id'], SQLITE3_INTEGER);
         $ins->bindValue(':pid', $pid !== '' ? $pid : null, $pid !== '' ? SQLITE3_TEXT : SQLITE3_NULL);
@@ -148,10 +168,23 @@ if ($task && $_SERVER['REQUEST_METHOD'] === 'POST' && ($preview || !$already)) {
         $ins->bindValue(':d', $vals['dosage'], SQLITE3_INTEGER);
         $ins->bindValue(':m', $vals['mode'], SQLITE3_INTEGER);
         $ins->bindValue(':tc', $vals['technique_count'], SQLITE3_INTEGER);
+        $ins->bindValue(':cs', $coding_seconds, $coding_seconds === null ? SQLITE3_NULL : SQLITE3_INTEGER);
         $ins->execute();
         $done = true;
     }
 }
+
+// Render timestamp for the form. On a validation retry, preserve the original
+// signed value so the clock measures the whole rating, not just the last attempt.
+$posted_rat = $_POST['rendered_at'] ?? '';
+$posted_sig = (string)($_POST['rendered_sig'] ?? '');
+if ($timing_secret !== '' && $token !== '' && ctype_digit((string)$posted_rat)
+    && hash_equals(timing_sig((int)$posted_rat, $token, $timing_secret), $posted_sig)) {
+    $rendered_at = (int)$posted_rat;
+} else {
+    $rendered_at = time();
+}
+$rendered_sig = ($token !== '' && $timing_secret !== '') ? timing_sig($rendered_at, $token, $timing_secret) : '';
 
 $page_title = 'ATLAS — Specificity Coding';
 require __DIR__ . '/templates/header.php';
@@ -216,6 +249,8 @@ else:
         <form method="post" action="code.php?<?= $preview ? 'preview=1&' : '' ?>task=<?= htmlspecialchars(urlencode($token)) ?>">
             <input type="hidden" name="pid" value="<?= htmlspecialchars($pid) ?>">
             <input type="hidden" name="session_id" value="<?= htmlspecialchars($session_id) ?>">
+            <input type="hidden" name="rendered_at" value="<?= (int)$rendered_at ?>">
+            <input type="hidden" name="rendered_sig" value="<?= htmlspecialchars($rendered_sig) ?>">
             <?php if ($preview): ?><input type="hidden" name="preview" value="1"><?php endif; ?>
 
             <?php foreach ($rubric as $dim => $info): ?>
