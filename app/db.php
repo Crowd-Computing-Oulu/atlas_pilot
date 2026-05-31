@@ -168,9 +168,10 @@ function init_schema(SQLite3 $db): void {
             source TEXT NOT NULL,             -- 'human' | model slug (e.g. 'anthropic/claude-sonnet-4.6')
             rater_pid TEXT,                   -- Prolific PID for humans; null for models
             session_id TEXT,
-            technique INTEGER,                -- 0-3
+            technique INTEGER,                -- 0-3 (scored on the PRIMARY practice)
             dosage INTEGER,                   -- 0-3
             mode INTEGER,                     -- 0-3
+            technique_count INTEGER,          -- distinct techniques in the report (1, 2, 3=3+)
             notes TEXT,
             raw_llm_response TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -178,4 +179,6 @@ function init_schema(SQLite3 $db): void {
         );
         CREATE INDEX IF NOT EXISTS idx_codings_task ON codings(task_id);
     ");
+    // Migration for DBs whose codings table predates the multiplicity count.
+    add_column_if_missing($db, 'codings', 'technique_count', 'INTEGER');
 }

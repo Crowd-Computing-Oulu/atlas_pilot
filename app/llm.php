@@ -69,13 +69,16 @@ MODE (how the practice is enacted; technique-conditional, so any clear mode desc
  2 specified: a clear mode descriptor of any kind (e.g. 'Solo', 'in a group', 'with an app', 'online', 'unguided')
  3 operationalised: mode plus a specific delivery mechanism (e.g. 'Solo using a meditation app for guidance')
 
+If the text describes more than one distinct practice (for example breathing AND a walk), score the PRIMARY practice only: the one the writer leads with or describes in the most detail. Dosage and Mode then refer to that primary practice. Separately report technique_count, the number of distinct practices described (1, 2, or 3 for three or more).
+
 For each dimension return: value (a short phrase capturing what was said, or null if absent), level (integer 0-3 from the rubric), and hint (a short, friendly, OPTIONAL suggestion of what detail could be added; use an empty string when level is 3). Keep hints gentle and never imply the person did something wrong.
 
 Respond ONLY with valid JSON in exactly this format:
 {
   \"technique\": {\"value\": \"...\", \"level\": 0, \"hint\": \"...\"},
   \"dosage\": {\"value\": \"...\", \"level\": 0, \"hint\": \"...\"},
-  \"mode\": {\"value\": \"...\", \"level\": 0, \"hint\": \"...\"}
+  \"mode\": {\"value\": \"...\", \"level\": 0, \"hint\": \"...\"},
+  \"technique_count\": 1
 }";
 
     $result = call_claude($system, "Description: " . $description, $model);
@@ -90,6 +93,7 @@ Respond ONLY with valid JSON in exactly this format:
                 $parsed[$d]['value'] = ($parsed[$d]['value'] ?? null) ?: null;
                 $parsed[$d]['hint'] = (string)($parsed[$d]['hint'] ?? '');
             }
+            $parsed['technique_count'] = max(1, min(3, (int)($parsed['technique_count'] ?? 1)));
             $parsed['_raw'] = $result['raw'];
             return $parsed;
         }

@@ -93,14 +93,19 @@ if ($task && $_SERVER['REQUEST_METHOD'] === 'POST' && ($preview || !$already)) {
         }
         $vals[$d] = (int)$v;
     }
+    $tc = $_POST['technique_count'] ?? '';
+    if (!$error && (!ctype_digit((string)$tc) || (int)$tc < 1 || (int)$tc > 3)) {
+        $error = 'Please answer how many distinct practices the text describes.';
+    }
+    $vals['technique_count'] = $error ? null : (int)$tc;
     if (!$error && $preview) {
         // Demo: echo the scores, write nothing.
         $preview_vals = $vals;
         $done = true;
     } elseif (!$error) {
         $ins = $db->prepare(
-            "INSERT INTO codings (task_id, source, rater_pid, session_id, technique, dosage, mode, notes)
-             VALUES (:tid, 'human', :pid, :sid, :t, :d, :m, :notes)"
+            "INSERT INTO codings (task_id, source, rater_pid, session_id, technique, dosage, mode, technique_count, notes)
+             VALUES (:tid, 'human', :pid, :sid, :t, :d, :m, :tc, :notes)"
         );
         $ins->bindValue(':tid', $task['id'], SQLITE3_INTEGER);
         $ins->bindValue(':pid', $pid !== '' ? $pid : null, $pid !== '' ? SQLITE3_TEXT : SQLITE3_NULL);
@@ -108,6 +113,7 @@ if ($task && $_SERVER['REQUEST_METHOD'] === 'POST' && ($preview || !$already)) {
         $ins->bindValue(':t', $vals['technique'], SQLITE3_INTEGER);
         $ins->bindValue(':d', $vals['dosage'], SQLITE3_INTEGER);
         $ins->bindValue(':m', $vals['mode'], SQLITE3_INTEGER);
+        $ins->bindValue(':tc', $vals['technique_count'], SQLITE3_INTEGER);
         $ins->bindValue(':notes', trim($_POST['notes'] ?? '') ?: null, SQLITE3_TEXT);
         $ins->execute();
         $done = true;
@@ -133,6 +139,7 @@ elseif ($done && $preview):
             <tr><td>Technique</td><td><strong><?= (int)$preview_vals['technique'] ?></strong> / 3</td></tr>
             <tr><td>Dosage</td><td><strong><?= (int)$preview_vals['dosage'] ?></strong> / 3</td></tr>
             <tr><td>Mode</td><td><strong><?= (int)$preview_vals['mode'] ?></strong> / 3</td></tr>
+            <tr><td>Distinct practices</td><td><strong><?= (int)$preview_vals['technique_count'] === 3 ? '3+' : (int)$preview_vals['technique_count'] ?></strong></td></tr>
         </table>
         <a href="code.php?preview=1<?= $token !== '' ? '&task=' . htmlspecialchars(urlencode($token)) : '' ?>" class="btn btn-outline-primary mt-2">Run the demo again</a>
     </div>
@@ -152,6 +159,7 @@ else:
         <?php if ($preview): ?><div class="alert alert-info">Preview mode — this is exactly what a crowd rater sees. Submitting saves nothing.</div><?php endif; ?>
         <h4 class="mb-2">Rate how specifically this text describes a self-care practice</h4>
         <p class="text-muted small">A person was asked to describe a practice they use when feeling stressed or anxious. Read their description, then rate how specific it is on three dimensions using the guides. Rate only what is written; do not guess what they might have meant.</p>
+        <p class="small"><strong>If the text describes more than one practice</strong> (for example breathing <em>and</em> a walk), rate the <strong>main practice</strong> only: the one the writer leads with or describes in the most detail. You will note how many separate practices there are in the last question.</p>
 
         <div class="card bg-light my-3">
             <div class="card-body">
@@ -182,6 +190,18 @@ else:
                     <?php endforeach; ?>
                 </fieldset>
             <?php endforeach; ?>
+
+            <fieldset class="mb-4">
+                <legend class="fs-6 fw-bold">How many distinct practices does the text describe?</legend>
+                <p class="small text-muted mb-2">Count separate things the person does (e.g. breathing and a walk = 2). You rated only the main one above.</p>
+                <?php foreach (['1' => '1 practice', '2' => '2 practices', '3' => '3 or more practices'] as $cscore => $clabel): ?>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="technique_count" id="tc_<?= $cscore ?>" value="<?= $cscore ?>"
+                               <?= (($_POST['technique_count'] ?? '') === $cscore) ? 'checked' : '' ?>>
+                        <label class="form-check-label" for="tc_<?= $cscore ?>"><strong><?= $cscore === '3' ? '3+' : $cscore ?></strong> — <?= htmlspecialchars($clabel) ?></label>
+                    </div>
+                <?php endforeach; ?>
+            </fieldset>
 
             <div class="mb-3">
                 <label class="form-label small text-muted" for="notes">Optional: anything ambiguous about this text?</label>

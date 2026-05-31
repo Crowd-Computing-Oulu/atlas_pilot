@@ -173,13 +173,14 @@ if ($view === 'coding_llm') {
             $budget--;
             $parsed = analyse_practice($row['text_content'], $model);
             if (!$parsed) { $failed++; continue; }
-            $ins = $db->prepare("INSERT INTO codings (task_id, source, technique, dosage, mode, raw_llm_response)
-                                 VALUES (:tid, :m, :t, :d, :mo, :raw)");
+            $ins = $db->prepare("INSERT INTO codings (task_id, source, technique, dosage, mode, technique_count, raw_llm_response)
+                                 VALUES (:tid, :m, :t, :d, :mo, :tc, :raw)");
             $ins->bindValue(':tid', $row['id'], SQLITE3_INTEGER);
             $ins->bindValue(':m', $model, SQLITE3_TEXT);
             $ins->bindValue(':t', (int)$parsed['technique']['level'], SQLITE3_INTEGER);
             $ins->bindValue(':d', (int)$parsed['dosage']['level'], SQLITE3_INTEGER);
             $ins->bindValue(':mo', (int)$parsed['mode']['level'], SQLITE3_INTEGER);
+            $ins->bindValue(':tc', (int)($parsed['technique_count'] ?? 1), SQLITE3_INTEGER);
             $ins->bindValue(':raw', $parsed['_raw'] ?? null, SQLITE3_TEXT);
             $ins->execute();
             $coded++;
@@ -829,7 +830,7 @@ $page_title = 'ATLAS Admin';
     </div></div>
 
     <?php
-    $all_codings = fetch_all($db, "SELECT c.id, c.source, c.rater_pid, c.technique, c.dosage, c.mode, c.created_at,
+    $all_codings = fetch_all($db, "SELECT c.id, c.source, c.rater_pid, c.technique, c.dosage, c.mode, c.technique_count, c.created_at,
                                           t.participant_id, t.condition_num, t.text_role
                                    FROM codings c JOIN coding_tasks t ON t.id = c.task_id
                                    ORDER BY c.id DESC");
@@ -841,7 +842,7 @@ $page_title = 'ATLAS Admin';
         <?php else: ?>
             <div style="max-height: 420px; overflow:auto;">
             <table class="table table-sm table-hover">
-                <thead><tr><th>#</th><th>P</th><th>Cond</th><th>Role</th><th>Source</th><th>Rater</th><th>T</th><th>D</th><th>M</th><th>When</th><th></th></tr></thead>
+                <thead><tr><th>#</th><th>P</th><th>Cond</th><th>Role</th><th>Source</th><th>Rater</th><th>T</th><th>D</th><th>M</th><th>#Prac</th><th>When</th><th></th></tr></thead>
                 <tbody>
                 <?php foreach ($all_codings as $c): ?>
                     <tr>
@@ -854,6 +855,7 @@ $page_title = 'ATLAS Admin';
                         <td><?= $c['technique'] ?></td>
                         <td><?= $c['dosage'] ?></td>
                         <td><?= $c['mode'] ?></td>
+                        <td><?= $c['technique_count'] === null ? '—' : ((int)$c['technique_count'] === 3 ? '3+' : (int)$c['technique_count']) ?></td>
                         <td class="small text-muted"><?= htmlspecialchars($c['created_at']) ?></td>
                         <td><a href="<?= $base_url ?>&view=coding_delete&cid=<?= (int)$c['id'] ?>" onclick="return confirm('Delete rating #<?= (int)$c['id'] ?>?')" class="text-danger text-decoration-none" title="Delete this rating">&#128465;</a></td>
                     </tr>
