@@ -12,5 +12,7 @@ docs/
 context/
 app/data/
 app/config.php
+analysis/
 *.db
 *.sqlite
+*.csv
