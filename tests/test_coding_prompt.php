@@ -68,4 +68,14 @@ if ($got !== $expected) {
 
 check($got === $expected, 'default prompt does not match the original byte-for-byte');
 
+// Task 3: signatures gained system_prompt + temperature with safe defaults.
+$ref = new ReflectionFunction('analyse_practice');
+$params = array_map(fn($p) => $p->getName(), $ref->getParameters());
+check($params === ['description','model','system_prompt','temperature'], 'analyse_practice signature: ' . implode(',', $params));
+foreach ([1,2,3] as $i) check($ref->getParameters()[$i]->isOptional(), "analyse_practice param $i must be optional");
+
+$cref = new ReflectionFunction('call_claude');
+$cparams = array_map(fn($p) => $p->getName(), $cref->getParameters());
+check($cparams === ['system_prompt','user_message','model','temperature'], 'call_claude signature: ' . implode(',', $cparams));
+
 echo "Task2 prompt OK\n";

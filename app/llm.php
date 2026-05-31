@@ -42,17 +42,21 @@ function default_coding_system_prompt(): string {
     return DEFAULT_CODING_INSTRUCTIONS . "\n\n" . CODING_OUTPUT_CONTRACT;
 }
 
-function call_claude(string $system_prompt, string $user_message, ?string $model = null): ?array {
+function call_claude(string $system_prompt, string $user_message, ?string $model = null, $temperature = null): ?array {
     $config = require __DIR__ . '/config.php';
 
-    $payload = json_encode([
+    $body = [
         'model' => $model ?: $config['llm_model'],
         'max_tokens' => 1024,
         'messages' => [
             ['role' => 'system', 'content' => $system_prompt],
             ['role' => 'user', 'content' => $user_message],
         ],
-    ]);
+    ];
+    if ($temperature !== null && $temperature !== '') {
+        $body['temperature'] = (float)$temperature;
+    }
+    $payload = json_encode($body);
 
     // OpenRouter (OpenAI-compatible chat completions endpoint).
     $ch = curl_init('https://openrouter.ai/api/v1/chat/completions');
@@ -88,10 +92,10 @@ function call_claude(string $system_prompt, string $user_message, ?string $model
  * rewrites it. Returns per-dimension {value, level (0-3), hint} plus _raw, or null
  * if the call/parse fails.
  */
-function analyse_practice(string $description, ?string $model = null): ?array {
-    $system = default_coding_system_prompt();
+function analyse_practice(string $description, ?string $model = null, ?string $system_prompt = null, $temperature = null): ?array {
+    $system = $system_prompt ?? default_coding_system_prompt();
 
-    $result = call_claude($system, "Description: " . $description, $model);
+    $result = call_claude($system, "Description: " . $description, $model, $temperature);
     if (!$result) return null;
 
     $json_match = [];
