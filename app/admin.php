@@ -244,6 +244,40 @@ if ($view === 'coding_llm') {
     exit;
 }
 
+// Create a new LLM coding run (snapshots model + prompt + temperature).
+if ($view === 'coding_run_create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    require_once __DIR__ . '/llm.php';
+    $model = trim($_POST['model_free'] ?? '') !== '' ? trim($_POST['model_free']) : trim($_POST['model'] ?? '');
+    $label = trim($_POST['label'] ?? '');
+    $instructions = trim($_POST['instructions'] ?? '') !== '' ? $_POST['instructions'] : DEFAULT_CODING_INSTRUCTIONS;
+    $temp = ($_POST['temperature'] ?? '') === '' ? null : (float)$_POST['temperature'];
+    if ($model === '') {
+        header("Location: {$base_url}&view=coding&run_err=1");
+        exit;
+    }
+    $full = $instructions . "\n\n" . CODING_OUTPUT_CONTRACT;
+    $ins = $db->prepare("INSERT INTO coding_runs (label, model, instructions, output_contract, full_prompt, temperature)
+                         VALUES (:l, :m, :i, :o, :f, :t)");
+    $ins->bindValue(':l', $label !== '' ? $label : null, $label !== '' ? SQLITE3_TEXT : SQLITE3_NULL);
+    $ins->bindValue(':m', $model, SQLITE3_TEXT);
+    $ins->bindValue(':i', $instructions, SQLITE3_TEXT);
+    $ins->bindValue(':o', CODING_OUTPUT_CONTRACT, SQLITE3_TEXT);
+    $ins->bindValue(':f', $full, SQLITE3_TEXT);
+    $ins->bindValue(':t', $temp, $temp === null ? SQLITE3_NULL : SQLITE3_FLOAT);
+    $ins->execute();
+    header("Location: {$base_url}&view=coding&run_created=" . $db->lastInsertRowID());
+    exit;
+}
+
+// Refresh the cached OpenRouter model list.
+if ($view === 'openrouter_refresh') {
+    require_once __DIR__ . '/openrouter_models.php';
+    $models = fetch_openrouter_models($config);
+    if ($models !== null) write_openrouter_cache($config, $models);
+    header("Location: {$base_url}&view=coding&or_refreshed=" . ($models === null ? '0' : count($models)));
+    exit;
+}
+
 // Delete a single coding (rating).
 if ($view === 'coding_delete' && isset($_GET['cid'])) {
     $cid = (int)$_GET['cid'];
@@ -821,6 +855,13 @@ $page_title = 'ATLAS Admin';
     foreach ($cov as $c) { if ((int)$c['h'] >= 1) $h1++; if ((int)$c['h'] >= 3) $h3++; }
     $human_total = (int)$db->querySingle("SELECT COUNT(*) FROM codings WHERE source='human'");
     $models = coding_models($config);
+    require_once __DIR__ . '/openrouter_models.php';
+    require_once __DIR__ . '/llm.php';
+    $or_cache = load_openrouter_models($config);
+    $or_models = $or_cache['models'];
+    $default_instructions = DEFAULT_CODING_INSTRUCTIONS;
+    $output_contract = CODING_OUTPUT_CONTRACT;
+    $runs = fetch_all($db, "SELECT r.*, (SELECT COUNT(*) FROM codings c WHERE c.run_id=r.id) coded FROM coding_runs r ORDER BY r.id DESC");
     $model_counts = [];
     foreach (fetch_all($db, "SELECT source, COUNT(*) n FROM codings WHERE source!='human' GROUP BY source") as $m) {
         $model_counts[$m['source']] = (int)$m['n'];
@@ -886,6 +927,35 @@ $page_title = 'ATLAS Admin';
             <a href="<?= $base_url ?>&view=coding_llm&n=40" class="btn btn-sm btn-outline-primary">Code next 40</a>
         <?php endif; ?>
         <p class="small text-muted mt-2 mb-0">Configure additional models with <code>'coding_models' =&gt; ['anthropic/claude-sonnet-4.6', '&lt;openrouter-slug&gt;', ...]</code> in <code>config.php</code>. Currently using <?= count($models) ?> model(s).</p>
+    </div></div>
+
+    <div class="card mb-3"><div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="mb-0">New LLM coding run</h6>
+            <a href="<?= $base_url ?>&view=openrouter_refresh" class="btn btn-sm btn-outline-secondary">Refresh model list<?= $or_cache['fetched_at'] ? ' (' . count($or_models) . ' cached)' : '' ?></a>
+        </div>
+        <?php if (isset($_GET['run_err'])): ?><div class="alert alert-warning">Pick or paste a model slug.</div><?php endif; ?>
+        <?php if (isset($_GET['or_refreshed'])): ?><div class="alert alert-info"><?= (int)$_GET['or_refreshed'] ? 'Model list refreshed (' . (int)$_GET['or_refreshed'] . ').' : 'Refresh failed; free-text slug still works.' ?></div><?php endif; ?>
+        <form method="post" action="<?= $base_url ?>&view=coding_run_create">
+            <div class="row g-2">
+                <div class="col-md-4"><input class="form-control form-control-sm" name="label" placeholder="Label (e.g. sonnet default)"></div>
+                <div class="col-md-4">
+                    <select class="form-select form-select-sm" name="model">
+                        <option value="">— pick a cached model —</option>
+                        <?php foreach ($or_models as $m): ?>
+                            <option value="<?= htmlspecialchars($m['id']) ?>"><?= htmlspecialchars($m['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-md-3"><input class="form-control form-control-sm" name="model_free" placeholder="…or paste slug (overrides)"></div>
+                <div class="col-md-1"><input class="form-control form-control-sm" name="temperature" placeholder="temp" title="optional temperature"></div>
+            </div>
+            <label class="form-label small text-muted mt-2 mb-1">Instructions (editable; the JSON contract below is appended automatically)</label>
+            <textarea class="form-control form-control-sm" name="instructions" rows="10" style="font-family:monospace;font-size:.8rem;"><?= htmlspecialchars($default_instructions) ?></textarea>
+            <label class="form-label small text-muted mt-2 mb-1">Output contract (appended, read-only)</label>
+            <pre class="bg-light p-2 small mb-2" style="white-space:pre-wrap;"><?= htmlspecialchars($output_contract) ?></pre>
+            <button class="btn btn-sm btn-primary" type="submit">Create run</button>
+        </form>
     </div></div>
 
     <?php
