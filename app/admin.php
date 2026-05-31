@@ -315,6 +315,28 @@ if ($view === 'coding_run_code' && isset($_GET['run'])) {
     exit;
 }
 
+// Archive / unarchive a run (keeps its codings).
+if ($view === 'coding_run_archive' && isset($_GET['run'])) {
+    $rid = (int)$_GET['run'];
+    $cur = $db->querySingle("SELECT status FROM coding_runs WHERE id = {$rid}");
+    $new = ($cur === 'archived') ? 'active' : 'archived';
+    $st = $db->prepare("UPDATE coding_runs SET status = :s WHERE id = :id");
+    $st->bindValue(':s', $new, SQLITE3_TEXT);
+    $st->bindValue(':id', $rid, SQLITE3_INTEGER);
+    $st->execute();
+    header("Location: {$base_url}&view=coding");
+    exit;
+}
+
+// Delete a run and all of its codings.
+if ($view === 'coding_run_delete' && isset($_GET['run'])) {
+    $rid = (int)$_GET['run'];
+    $db->exec("DELETE FROM codings WHERE run_id = {$rid}");
+    $db->exec("DELETE FROM coding_runs WHERE id = {$rid}");
+    header("Location: {$base_url}&view=coding");
+    exit;
+}
+
 // Delete a single coding (rating).
 if ($view === 'coding_delete' && isset($_GET['cid'])) {
     $cid = (int)$_GET['cid'];
