@@ -179,9 +179,23 @@ function init_schema(SQLite3 $db): void {
             FOREIGN KEY (task_id) REFERENCES coding_tasks(id)
         );
         CREATE INDEX IF NOT EXISTS idx_codings_task ON codings(task_id);
+
+        CREATE TABLE IF NOT EXISTS coding_runs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            label TEXT,
+            model TEXT NOT NULL,
+            instructions TEXT NOT NULL,
+            output_contract TEXT NOT NULL,
+            full_prompt TEXT NOT NULL,
+            temperature REAL,
+            status TEXT NOT NULL DEFAULT 'active',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
     ");
     // Migration for DBs whose codings table predates the multiplicity count.
     add_column_if_missing($db, 'codings', 'technique_count', 'INTEGER');
     // Migration for DBs predating server-side rating-duration capture.
     add_column_if_missing($db, 'codings', 'coding_seconds', 'INTEGER');
+    // Migration for DBs predating run-tracked LLM coding.
+    add_column_if_missing($db, 'codings', 'run_id', 'INTEGER');
 }
