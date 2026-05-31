@@ -15,7 +15,7 @@ $base_url = "admin.php?key=" . urlencode($key);
 // Handle exports
 if ($view === 'export') {
     $table = $_GET['table'] ?? '';
-    $allowed = ['participants', 'responses', 'practice_extractions', 'questionnaire'];
+    $allowed = ['participants', 'responses', 'practice_extractions', 'questionnaire', 'codings', 'coding_tasks'];
     if (!in_array($table, $allowed)) die('Invalid table');
 
     // PHP's SQLite3Result does not have fetchAll(); build rows via fetchArray loop.
@@ -25,6 +25,18 @@ if ($view === 'export') {
         $sql = "SELECT r.*, p.prolific_pid, p.condition_num FROM responses r JOIN participants p ON r.participant_id = p.id ORDER BY r.id";
     } elseif ($table === 'practice_extractions') {
         $sql = "SELECT g.*, p.prolific_pid, p.condition_num FROM practice_extractions g JOIN participants p ON g.participant_id = p.id ORDER BY g.id";
+    } elseif ($table === 'codings') {
+        // One row per rating (human or model), tied back to participant/condition/practice.
+        $sql = "SELECT c.id AS coding_id, c.task_id, t.token, t.participant_id, p.prolific_pid, t.condition_num, t.text_role,
+                       c.source, c.rater_pid, c.technique, c.dosage, c.mode, c.technique_count, c.notes, c.created_at
+                FROM codings c
+                JOIN coding_tasks t ON t.id = c.task_id
+                JOIN participants p ON p.id = t.participant_id
+                ORDER BY t.participant_id, t.text_role, c.source, c.id";
+    } elseif ($table === 'coding_tasks') {
+        $sql = "SELECT t.id AS task_id, t.token, t.participant_id, p.prolific_pid, t.condition_num, t.text_role,
+                       t.target_raters, t.text_content, t.created_at
+                FROM coding_tasks t JOIN participants p ON p.id = t.participant_id ORDER BY t.id";
     } else {
         $sql = "SELECT q.*, p.prolific_pid, p.condition_num FROM questionnaire q JOIN participants p ON q.participant_id = p.id ORDER BY q.id";
     }
@@ -39,9 +51,10 @@ if ($view === 'export') {
     header("Content-Disposition: attachment; filename={$table}_" . date('Y-m-d') . ".csv");
     if (!empty($rows)) {
         $out = fopen('php://output', 'w');
-        fputcsv($out, array_keys($rows[0]));
+        // Explicit escape '' = standard CSV and future-proofs the PHP 8.4 fputcsv deprecation.
+        fputcsv($out, array_keys($rows[0]), ',', '"', '');
         foreach ($rows as $row) {
-            fputcsv($out, $row);
+            fputcsv($out, $row, ',', '"', '');
         }
         fclose($out);
     }
@@ -301,6 +314,9 @@ $page_title = 'ATLAS Admin';
                     <li><a class="dropdown-item" href="<?= $base_url ?>&view=export&table=responses">Responses CSV</a></li>
                     <li><a class="dropdown-item" href="<?= $base_url ?>&view=export&table=practice_extractions">Practice Extractions CSV</a></li>
                     <li><a class="dropdown-item" href="<?= $base_url ?>&view=export&table=questionnaire">Questionnaire CSV</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="<?= $base_url ?>&view=export&table=codings"><strong>Ratings (codings) CSV</strong></a></li>
+                    <li><a class="dropdown-item" href="<?= $base_url ?>&view=export&table=coding_tasks">Coding tasks CSV</a></li>
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item" href="<?= $base_url ?>&view=download_db"><strong>Download SQLite DB</strong></a></li>
                 </ul>
