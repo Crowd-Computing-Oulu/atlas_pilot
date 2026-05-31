@@ -58,12 +58,14 @@ if ($preview && !$task) {
 // without protection a burst of simultaneous raters all read the same lowest task
 // and dogpile it. Two defences: (1) the select-and-stamp runs in an IMMEDIATE
 // transaction, so serves serialise and each sees prior stamps; (2) a task just
-// handed out is deprioritised (+1 to its effective count) for ~5 min via
+// handed out is deprioritised (+1 to its effective count) for ~3 min via
 // last_served_at, so the next concurrent rater picks a different task. The
 // reservation lapses after the TTL, so a task whose rater abandoned is not stranded.
 $router_exhausted = false;
 if (!$task && !$preview && $token === '') {
-    $reserve_cutoff = time() - 300; // a serve softly reserves a task for ~5 min
+    // Typical rating takes ~2 min; reserve for 3 to cover the slower tail before
+    // re-offering, while freeing an abandoned task quickly.
+    $reserve_cutoff = time() - 180;
     $count_sql = "(SELECT COUNT(*) FROM codings c WHERE c.task_id = t.id AND c.source = 'human')";
     $order_sql = "({$count_sql} + CASE WHEN t.last_served_at IS NOT NULL AND t.last_served_at >= {$reserve_cutoff} THEN 1 ELSE 0 END) ASC, RANDOM()";
     $db->exec('BEGIN IMMEDIATE');
