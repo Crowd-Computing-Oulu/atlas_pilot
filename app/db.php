@@ -156,7 +156,7 @@ function init_schema(SQLite3 $db): void {
             condition_num INTEGER NOT NULL,
             text_role TEXT NOT NULL,          -- 'single' | 'c3_first' | 'c3_final'
             text_content TEXT NOT NULL,
-            target_raters INTEGER NOT NULL DEFAULT 2,
+            target_raters INTEGER NOT NULL DEFAULT 3,  -- paper: >=3 raters/response, modal label
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE (participant_id, text_role),
             FOREIGN KEY (participant_id) REFERENCES participants(id)

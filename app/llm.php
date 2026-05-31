@@ -67,7 +67,7 @@ MODE (how the practice is enacted; technique-conditional, so any clear mode desc
  0 absent: no information about how the practice is enacted
  1 vague: minimal detail (e.g. 'by myself', 'with help')
  2 specified: a clear mode descriptor of any kind (e.g. 'Solo', 'in a group', 'with an app', 'online', 'unguided')
- 3 operationalised: mode plus a specific delivery mechanism (e.g. 'Solo using the Headspace app for guidance')
+ 3 operationalised: mode plus a specific delivery mechanism (e.g. 'Solo using a meditation app for guidance')
 
 For each dimension return: value (a short phrase capturing what was said, or null if absent), level (integer 0-3 from the rubric), and hint (a short, friendly, OPTIONAL suggestion of what detail could be added; use an empty string when level is 3). Keep hints gentle and never imply the person did something wrong.
 

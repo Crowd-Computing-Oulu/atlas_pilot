@@ -117,8 +117,8 @@ if ($view === 'coding_seed') {
             : [['single', coding_initial_text($db, $pid)]];
         foreach ($tasks as [$role, $text]) {
             if ($text === null || trim($text) === '') continue;
-            $ins = $db->prepare("INSERT OR IGNORE INTO coding_tasks (token, participant_id, condition_num, text_role, text_content)
-                                 VALUES (:tok, :pid, :c, :role, :txt)");
+            $ins = $db->prepare("INSERT OR IGNORE INTO coding_tasks (token, participant_id, condition_num, text_role, text_content, target_raters)
+                                 VALUES (:tok, :pid, :c, :role, :txt, 3)");
             $ins->bindValue(':tok', bin2hex(random_bytes(8)), SQLITE3_TEXT);
             $ins->bindValue(':pid', $pid, SQLITE3_INTEGER);
             $ins->bindValue(':c', $cond, SQLITE3_INTEGER);
@@ -759,8 +759,8 @@ $page_title = 'ATLAS Admin';
     $ct_total = (int)$db->querySingle("SELECT COUNT(*) FROM coding_tasks");
     $roles = fetch_all($db, "SELECT condition_num, text_role, COUNT(*) n FROM coding_tasks GROUP BY condition_num, text_role ORDER BY condition_num, text_role");
     $cov = fetch_all($db, "SELECT (SELECT COUNT(*) FROM codings c WHERE c.task_id=t.id AND c.source='human') h FROM coding_tasks t");
-    $h1 = 0; $h2 = 0;
-    foreach ($cov as $c) { if ((int)$c['h'] >= 1) $h1++; if ((int)$c['h'] >= 2) $h2++; }
+    $h1 = 0; $h3 = 0;
+    foreach ($cov as $c) { if ((int)$c['h'] >= 1) $h1++; if ((int)$c['h'] >= 3) $h3++; }
     $human_total = (int)$db->querySingle("SELECT COUNT(*) FROM codings WHERE source='human'");
     $models = coding_models($config);
     $model_counts = [];
@@ -779,6 +779,7 @@ $page_title = 'ATLAS Admin';
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="mb-0">Specificity Coding</h5>
             <div>
+                <a href="code.php?preview=1<?= $sample ? '&task=' . htmlspecialchars(urlencode($sample)) : '' ?>" target="_blank" rel="noopener" class="btn btn-sm btn-outline-info">Test coding &#8599;</a>
                 <a href="<?= $base_url ?>&view=coding_seed" onclick="return confirm('Build coding tasks from the 300 completed Prolific participants? Existing tasks are kept (idempotent).')" class="btn btn-sm btn-primary">Seed tasks</a>
                 <a href="<?= $base_url ?>&view=coding_csv" class="btn btn-sm btn-outline-success">Export Taskflow CSV</a>
             </div>
@@ -787,7 +788,7 @@ $page_title = 'ATLAS Admin';
         <table class="table table-sm w-auto">
             <tr><td>Total coding tasks</td><td><strong><?= $ct_total ?></strong></td></tr>
             <tr><td>Tasks with ≥1 human rating</td><td><?= $h1 ?> / <?= $ct_total ?> (<?= fmt_pct($h1, $ct_total) ?>)</td></tr>
-            <tr><td>Tasks with ≥2 human ratings (target met)</td><td><?= $h2 ?> / <?= $ct_total ?> (<?= fmt_pct($h2, $ct_total) ?>)</td></tr>
+            <tr><td>Tasks with ≥3 human ratings (target met)</td><td><?= $h3 ?> / <?= $ct_total ?> (<?= fmt_pct($h3, $ct_total) ?>)</td></tr>
             <tr><td>Total human ratings collected</td><td><?= $human_total ?></td></tr>
         </table>
 
@@ -802,7 +803,7 @@ $page_title = 'ATLAS Admin';
                 <?php endforeach; ?>
             </table>
             <p class="small text-muted">Sample task URL for Taskflow: <code><?= htmlspecialchars($app_base . '/code.php?task=' . $sample) ?></code><br>
-            Upload the exported CSV to Taskflow and set the per-task allocation (e.g. 2) for two independent raters per text.</p>
+            Upload the exported CSV to Taskflow and set the per-task allocation to <strong>3</strong> for three independent raters per text (paper protocol: modal label).</p>
         <?php endif; ?>
     </div></div>
 
