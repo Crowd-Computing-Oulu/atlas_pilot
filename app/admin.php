@@ -249,7 +249,8 @@ if ($view === 'coding_run_create' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     require_once __DIR__ . '/llm.php';
     $model = trim($_POST['model_free'] ?? '') !== '' ? trim($_POST['model_free']) : trim($_POST['model'] ?? '');
     $label = trim($_POST['label'] ?? '');
-    $instructions = trim($_POST['instructions'] ?? '') !== '' ? $_POST['instructions'] : DEFAULT_CODING_INSTRUCTIONS;
+    $instructions = trim($_POST['instructions'] ?? '');
+    if ($instructions === '') $instructions = DEFAULT_CODING_INSTRUCTIONS;
     $temp = ($_POST['temperature'] ?? '') === '' ? null : (float)$_POST['temperature'];
     if ($model === '') {
         header("Location: {$base_url}&view=coding&run_err=1");
@@ -948,7 +949,7 @@ $page_title = 'ATLAS Admin';
                     </select>
                 </div>
                 <div class="col-md-3"><input class="form-control form-control-sm" name="model_free" placeholder="…or paste slug (overrides)"></div>
-                <div class="col-md-1"><input class="form-control form-control-sm" name="temperature" placeholder="temp" title="optional temperature"></div>
+                <div class="col-md-1"><input type="number" step="0.1" min="0" max="2" class="form-control form-control-sm" name="temperature" placeholder="temp" title="optional temperature (blank = provider default)"></div>
             </div>
             <label class="form-label small text-muted mt-2 mb-1">Instructions (editable; the JSON contract below is appended automatically)</label>
             <textarea class="form-control form-control-sm" name="instructions" rows="10" style="font-family:monospace;font-size:.8rem;"><?= htmlspecialchars($default_instructions) ?></textarea>
