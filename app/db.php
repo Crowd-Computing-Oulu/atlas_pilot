@@ -157,6 +157,7 @@ function init_schema(SQLite3 $db): void {
             text_role TEXT NOT NULL,          -- 'single' | 'c3_first' | 'c3_final'
             text_content TEXT NOT NULL,
             target_raters INTEGER NOT NULL DEFAULT 3,  -- paper: >=3 raters/response, modal label
+            last_served_at INTEGER,           -- unix seconds the router last handed this task out (soft reservation)
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE (participant_id, text_role),
             FOREIGN KEY (participant_id) REFERENCES participants(id)
@@ -196,6 +197,8 @@ function init_schema(SQLite3 $db): void {
     add_column_if_missing($db, 'codings', 'technique_count', 'INTEGER');
     // Migration for DBs predating server-side rating-duration capture.
     add_column_if_missing($db, 'codings', 'coding_seconds', 'INTEGER');
+    // Migration for DBs predating the router soft-reservation column.
+    add_column_if_missing($db, 'coding_tasks', 'last_served_at', 'INTEGER');
     // Migration for DBs predating run-tracked LLM coding.
     add_column_if_missing($db, 'codings', 'run_id', 'INTEGER');
 }

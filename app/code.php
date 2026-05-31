@@ -14,6 +14,7 @@
 require_once __DIR__ . '/db.php';
 
 $db = get_db();
+$db->busyTimeout(5000); // wait, don't fail, if another rater's serve holds the write lock
 $config = require __DIR__ . '/config.php';
 
 // Server-side rating-duration capture. The form carries a render timestamp signed
@@ -51,33 +52,49 @@ if ($preview && !$task) {
 
 // Router mode: a rater landed on the shared URL with no specific task. Serve the
 // least-rated open task they have not coded yet, so a single URL fills coverage
-// evenly and returning raters always get a fresh text. RANDOM() breaks ties so
-// concurrent raters spread across the equally-least-rated set instead of colliding.
+// evenly and returning raters always get a fresh text.
+//
+// Concurrency: the committed rating count does not move until a rater submits, so
+// without protection a burst of simultaneous raters all read the same lowest task
+// and dogpile it. Two defences: (1) the select-and-stamp runs in an IMMEDIATE
+// transaction, so serves serialise and each sees prior stamps; (2) a task just
+// handed out is deprioritised (+1 to its effective count) for ~5 min via
+// last_served_at, so the next concurrent rater picks a different task. The
+// reservation lapses after the TTL, so a task whose rater abandoned is not stranded.
 $router_exhausted = false;
 if (!$task && !$preview && $token === '') {
+    $reserve_cutoff = time() - 300; // a serve softly reserves a task for ~5 min
+    $count_sql = "(SELECT COUNT(*) FROM codings c WHERE c.task_id = t.id AND c.source = 'human')";
+    $order_sql = "({$count_sql} + CASE WHEN t.last_served_at IS NOT NULL AND t.last_served_at >= {$reserve_cutoff} THEN 1 ELSE 0 END) ASC, RANDOM()";
+    $db->exec('BEGIN IMMEDIATE');
     if ($pid !== '') {
         $sel = $db->prepare(
             "SELECT t.* FROM coding_tasks t
-             WHERE (SELECT COUNT(*) FROM codings c WHERE c.task_id = t.id AND c.source = 'human') < t.target_raters
+             WHERE {$count_sql} < t.target_raters
                AND t.id NOT IN (SELECT task_id FROM codings WHERE source = 'human' AND rater_pid = :pid)
-             ORDER BY (SELECT COUNT(*) FROM codings c WHERE c.task_id = t.id AND c.source = 'human') ASC, RANDOM()
+             ORDER BY {$order_sql}
              LIMIT 1");
         $sel->bindValue(':pid', $pid, SQLITE3_TEXT);
     } else {
         // No PID (e.g. a test landing): just serve the globally least-rated open task.
         $sel = $db->prepare(
             "SELECT t.* FROM coding_tasks t
-             WHERE (SELECT COUNT(*) FROM codings c WHERE c.task_id = t.id AND c.source = 'human') < t.target_raters
-             ORDER BY (SELECT COUNT(*) FROM codings c WHERE c.task_id = t.id AND c.source = 'human') ASC, RANDOM()
+             WHERE {$count_sql} < t.target_raters
+             ORDER BY {$order_sql}
              LIMIT 1");
     }
     $task = $sel->execute()->fetchArray(SQLITE3_ASSOC);
     if ($task) {
         $token = $task['token'];
+        $stamp = $db->prepare("UPDATE coding_tasks SET last_served_at = :now WHERE id = :id");
+        $stamp->bindValue(':now', time(), SQLITE3_INTEGER);
+        $stamp->bindValue(':id', (int)$task['id'], SQLITE3_INTEGER);
+        $stamp->execute();
     } else {
         // Every task is at target, or this rater has already coded all open tasks.
         $router_exhausted = true;
     }
+    $db->exec('COMMIT');
 }
 
 // Rubric: dimension-specific 0-3 anchors, mirroring llm.php so human and model
