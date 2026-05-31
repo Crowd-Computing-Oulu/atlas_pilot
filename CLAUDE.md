@@ -65,7 +65,8 @@ Most locked-design code changes have shipped (PSS-4 intake step, C1/C2 stress fr
 ```
 app/                        -- PHP web application
   index.php                 -- Entry point, step router, session management
-  admin.php                 -- Admin dashboard (stats, participant details, exports, DB download)
+  admin.php                 -- Admin dashboard (stats, participant details, exports, DB download, Coding tab)
+  code.php                  -- Post-hoc crowd coding route (Taskflow); blinded text + T/D/M rubric + technique_count; ?preview=1 no-write demo
   config.php                -- Local config: DB path, API key, admin password (GITIGNORED)
   config.example.php        -- Template for config
   db.php                    -- SQLite connection + schema init
@@ -97,7 +98,7 @@ paper/                      -- HCOMP/ACM paper (separate git repo, Overleaf-sync
 
 **Paper workflow:** Do not compile `paper/paper.tex` locally. The paper is Overleaf-synced and compiles there. After editing paper files, just commit and push the paper repo (no local `pdflatex`/`bibtex`).
 
-Database tables: `participants`, `responses`, `practice_extractions`, `questionnaire`. Naming follows the current "practice" terminology end to end; the older "gene" symbols have been retired from the codebase.
+Database tables: `participants`, `responses`, `practice_extractions`, `questionnaire`, `coding_tasks` (one blinded text per row, seeded from the 300 analysis set), `codings` (one rating per row, human or model `source`; columns T/D/M 0-3 plus `technique_count`). Naming follows the current "practice" terminology end to end; the older "gene" symbols have been retired from the codebase.
 
 ## Tech Stack
 
@@ -136,7 +137,11 @@ What's wired up in the live app, by step. Read this before asking whether someth
 | Admin: stats & per-condition breakdown | ✅ | `/admin.php?key=<admin_key>`. |
 | Admin: test links + `?fill=1` preview | ✅ | All 3 conditions; preview auto-fills via `synthetic_preview()` in `app/synthetic.php` with no DB writes. |
 | Admin: participant detail (response chain, extraction trajectory, attention-check pass/fail) | ✅ | |
-| Admin: CSV export, SQLite download | ✅ | |
+| Admin: CSV export, SQLite download | ✅ | Now includes `codings` (long-format ratings, joined to participant/condition/practice) and `coding_tasks`. |
+| `code.php` (post-hoc coding route) | ✅ | Crowd specificity-coding screen, one blinded text per `?task=<token>`, full 0-3 T/D/M rubric + `technique_count` (1/2/3+) field. Blind to condition and C3 first/final. `?preview=1` is a no-write demo / rubric viewer. Distributed via Prolific Taskflow (allocation 3). |
+| Admin: Coding tab | ✅ | Seed 404 tasks from the 300 analysis set (C1/C2 single, C3 first+final snapshots), export Taskflow URL CSV, coverage stats (>=3 raters), per-rating + per-model delete, "Test coding" preview launcher. |
+| Coding facility: multiplicity rule | ✅ | T/D/M scored on the PRIMARY practice (writer leads with / details most); `technique_count` captures bundling. Same rule in `code.php`, `llm.php`, and paper. ~41%+ reports are multi-practice. |
+| Optional multi-model LLM coding | ✅ (dormant) | Admin-triggered batch coding of tasks across `config['coding_models']` (default = `llm_model`), same rubric + primary-practice rule, stored in `codings` with `source`=model slug. Off unless triggered. |
 | Bot detection | external | Prolific native checks at recruitment + the IMC item above. App does not run independent bot detection. |
 | 90s minimum response time on description | ❌ | Considered, not implemented. Out-of-scope for the launched pilot. |
 | Practice-plausibility follow-up item | ❌ | Considered, not implemented. |
