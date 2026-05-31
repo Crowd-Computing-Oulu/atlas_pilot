@@ -15,7 +15,7 @@ $base_url = "admin.php?key=" . urlencode($key);
 // Handle exports
 if ($view === 'export') {
     $table = $_GET['table'] ?? '';
-    $allowed = ['participants', 'responses', 'practice_extractions', 'questionnaire', 'codings', 'coding_tasks'];
+    $allowed = ['participants', 'responses', 'practice_extractions', 'questionnaire', 'codings', 'coding_tasks', 'coding_runs'];
     if (!in_array($table, $allowed)) die('Invalid table');
 
     // PHP's SQLite3Result does not have fetchAll(); build rows via fetchArray loop.
@@ -28,7 +28,7 @@ if ($view === 'export') {
     } elseif ($table === 'codings') {
         // One row per rating (human or model), tied back to participant/condition/practice.
         $sql = "SELECT c.id AS coding_id, c.task_id, t.token, t.participant_id, p.prolific_pid, t.condition_num, t.text_role,
-                       c.source, c.rater_pid, c.technique, c.dosage, c.mode, c.technique_count, c.coding_seconds, c.notes, c.created_at
+                       c.source, c.run_id, c.rater_pid, c.technique, c.dosage, c.mode, c.technique_count, c.coding_seconds, c.notes, c.created_at
                 FROM codings c
                 JOIN coding_tasks t ON t.id = c.task_id
                 JOIN participants p ON p.id = t.participant_id
@@ -37,6 +37,11 @@ if ($view === 'export') {
         $sql = "SELECT t.id AS task_id, t.token, t.participant_id, p.prolific_pid, t.condition_num, t.text_role,
                        t.target_raters, t.text_content, t.created_at
                 FROM coding_tasks t JOIN participants p ON p.id = t.participant_id ORDER BY t.id";
+    } elseif ($table === 'coding_runs') {
+        $sql = "SELECT r.id AS run_id, r.label, r.model, r.temperature, r.status, r.created_at,
+                       (SELECT COUNT(*) FROM codings c WHERE c.run_id = r.id) AS coded,
+                       r.full_prompt
+                FROM coding_runs r ORDER BY r.id";
     } else {
         $sql = "SELECT q.*, p.prolific_pid, p.condition_num FROM questionnaire q JOIN participants p ON q.participant_id = p.id ORDER BY q.id";
     }
