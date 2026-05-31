@@ -347,7 +347,7 @@ if ($view === 'coding_delete' && isset($_GET['cid'])) {
 
 // Clear all codings from one source (a model run, or 'human').
 if ($view === 'coding_clear_source' && isset($_GET['src'])) {
-    $stmt = $db->prepare("DELETE FROM codings WHERE source = :s");
+    $stmt = $db->prepare("DELETE FROM codings WHERE source = :s AND run_id IS NULL");
     $stmt->bindValue(':s', $_GET['src'], SQLITE3_TEXT);
     $stmt->execute();
     header("Location: {$base_url}&view=coding");
@@ -922,7 +922,7 @@ $page_title = 'ATLAS Admin';
     $output_contract = CODING_OUTPUT_CONTRACT;
     $runs = fetch_all($db, "SELECT r.*, (SELECT COUNT(*) FROM codings c WHERE c.run_id=r.id) coded FROM coding_runs r ORDER BY r.id DESC");
     $model_counts = [];
-    foreach (fetch_all($db, "SELECT source, COUNT(*) n FROM codings WHERE source!='human' GROUP BY source") as $m) {
+    foreach (fetch_all($db, "SELECT source, COUNT(*) n FROM codings WHERE source!='human' AND run_id IS NULL GROUP BY source") as $m) {
         $model_counts[$m['source']] = (int)$m['n'];
     }
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
