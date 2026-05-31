@@ -145,20 +145,45 @@ if ($view === 'coding_seed') {
     exit;
 }
 
-// Export the unique task URLs for Prolific Taskflow (one URL per row).
+// Export task URLs for Prolific Taskflow. One row per task (no repeated URLs).
+//   column A = url, column B = participants/allocation per task (Taskflow's per-task rater count).
+// Params: &alloc=N sets column B (default 3); &sample=N exports a stratified pilot subset
+// (balanced across condition x role); &plain=1 emits url-only if your Taskflow flow wants a single column.
 if ($view === 'coding_csv') {
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
     $base = ($config['app_base_url'] ?? '') ?: ($scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost'));
     $base = rtrim($base, '/');
+    $alloc = max(1, min(50, (int)($_GET['alloc'] ?? 3)));
+    $sample = isset($_GET['sample']) ? max(1, (int)$_GET['sample']) : 0;
+    $plain = ($_GET['plain'] ?? '') === '1';
+
+    $tokens = [];
+    if ($sample > 0) {
+        // Stratified by condition x role so the rubric pilot stress-tests every text type.
+        $strata = fetch_all($db, "SELECT condition_num, text_role FROM coding_tasks GROUP BY condition_num, text_role ORDER BY condition_num, text_role");
+        $per = (int)ceil($sample / max(1, count($strata)));
+        foreach ($strata as $s) {
+            $st = $db->prepare("SELECT token FROM coding_tasks WHERE condition_num=:c AND text_role=:r ORDER BY id LIMIT :l");
+            $st->bindValue(':c', $s['condition_num'], SQLITE3_INTEGER);
+            $st->bindValue(':r', $s['text_role'], SQLITE3_TEXT);
+            $st->bindValue(':l', $per, SQLITE3_INTEGER);
+            $res = $st->execute();
+            while ($row = $res->fetchArray(SQLITE3_ASSOC)) { $tokens[] = $row['token']; }
+        }
+    } else {
+        $res = $db->query("SELECT token FROM coding_tasks ORDER BY id");
+        while ($row = $res->fetchArray(SQLITE3_ASSOC)) { $tokens[] = $row['token']; }
+    }
+
     header('Content-Type: text/csv');
-    header('Content-Disposition: attachment; filename=taskflow_urls_' . date('Y-m-d') . '.csv');
+    $fn = ($sample > 0 ? "taskflow_pilot_" . count($tokens) : "taskflow_full_" . count($tokens)) . "_x{$alloc}";
+    header("Content-Disposition: attachment; filename={$fn}_" . date('Y-m-d') . ".csv");
     $out = fopen('php://output', 'w');
-    // Explicit escape '' = standard CSV (no legacy backslash escaping) and silences
-    // the PHP 8.4 deprecation that otherwise leaks a warning into the output stream.
-    fputcsv($out, ['url'], ',', '"', '');
-    $res = $db->query("SELECT token FROM coding_tasks ORDER BY id");
-    while ($row = $res->fetchArray(SQLITE3_ASSOC)) {
-        fputcsv($out, [$base . '/code.php?task=' . $row['token']], ',', '"', '');
+    // Explicit escape '' = standard CSV and future-proofs the PHP 8.4 fputcsv deprecation.
+    fputcsv($out, $plain ? ['url'] : ['url', 'participants'], ',', '"', '');
+    foreach ($tokens as $t) {
+        $url = $base . '/code.php?task=' . $t;
+        fputcsv($out, $plain ? [$url] : [$url, $alloc], ',', '"', '');
     }
     fclose($out);
     exit;
@@ -798,7 +823,8 @@ $page_title = 'ATLAS Admin';
             <div>
                 <a href="code.php?preview=1<?= $sample ? '&task=' . htmlspecialchars(urlencode($sample)) : '' ?>" target="_blank" rel="noopener" class="btn btn-sm btn-outline-info">Test coding &#8599;</a>
                 <a href="<?= $base_url ?>&view=coding_seed" onclick="return confirm('Build coding tasks from the 300 completed Prolific participants? Existing tasks are kept (idempotent).')" class="btn btn-sm btn-primary">Seed tasks</a>
-                <a href="<?= $base_url ?>&view=coding_csv" class="btn btn-sm btn-outline-success">Export Taskflow CSV</a>
+                <a href="<?= $base_url ?>&view=coding_csv&sample=48&alloc=5" class="btn btn-sm btn-outline-warning">Pilot CSV (~48 &times;5)</a>
+                <a href="<?= $base_url ?>&view=coding_csv&alloc=3" class="btn btn-sm btn-outline-success">Full CSV (&times;3)</a>
             </div>
         </div>
 
@@ -820,7 +846,7 @@ $page_title = 'ATLAS Admin';
                 <?php endforeach; ?>
             </table>
             <p class="small text-muted">Sample task URL for Taskflow: <code><?= htmlspecialchars($app_base . '/code.php?task=' . $sample) ?></code><br>
-            Upload the exported CSV to Taskflow and set the per-task allocation to <strong>3</strong> for three independent raters per text (paper protocol: modal label).</p>
+            CSV format: column A = url, column B = participants per task (allocation). <strong>Pilot CSV</strong> = a stratified ~48-task sample at &times;5 raters to calibrate the rubric first; <strong>Full CSV</strong> = all <?= $ct_total ?> at &times;3 (paper protocol: modal of 3). If your Taskflow flow wants a single column, append <code>&amp;plain=1</code> and set the count in the UI.</p>
         <?php endif; ?>
     </div></div>
 
