@@ -158,8 +158,10 @@ if ($view === 'coding_csv') {
     $plain = ($_GET['plain'] ?? '') === '1';
 
     $tokens = [];
+    $kind = 'remaining';
     if ($sample > 0) {
-        // Stratified by condition x role so the rubric pilot stress-tests every text type.
+        // Stratified by condition x role so the test run spans every text type.
+        $kind = 'testrun';
         $strata = fetch_all($db, "SELECT condition_num, text_role FROM coding_tasks GROUP BY condition_num, text_role ORDER BY condition_num, text_role");
         $per = (int)ceil($sample / max(1, count($strata)));
         foreach ($strata as $s) {
@@ -170,13 +172,22 @@ if ($view === 'coding_csv') {
             $res = $st->execute();
             while ($row = $res->fetchArray(SQLITE3_ASSOC)) { $tokens[] = $row['token']; }
         }
-    } else {
+    } elseif (($_GET['all'] ?? '') === '1') {
+        // Force every task (e.g. for a full re-code).
+        $kind = 'all';
         $res = $db->query("SELECT token FROM coding_tasks ORDER BY id");
+        while ($row = $res->fetchArray(SQLITE3_ASSOC)) { $tokens[] = $row['token']; }
+    } else {
+        // Default: only tasks that still lack their target human ratings, so a prior
+        // test run is not re-coded and its data is kept. Before any coding this is all 404.
+        $res = $db->query("SELECT t.token FROM coding_tasks t
+                           WHERE (SELECT COUNT(*) FROM codings c WHERE c.task_id=t.id AND c.source='human') < t.target_raters
+                           ORDER BY t.id");
         while ($row = $res->fetchArray(SQLITE3_ASSOC)) { $tokens[] = $row['token']; }
     }
 
     header('Content-Type: text/csv');
-    $fn = ($sample > 0 ? "taskflow_pilot_" . count($tokens) : "taskflow_full_" . count($tokens)) . "_x{$alloc}";
+    $fn = "taskflow_{$kind}_" . count($tokens) . "_x{$alloc}";
     header("Content-Disposition: attachment; filename={$fn}_" . date('Y-m-d') . ".csv");
     $out = fopen('php://output', 'w');
     // Explicit escape '' = standard CSV and future-proofs the PHP 8.4 fputcsv deprecation.
@@ -824,7 +835,8 @@ $page_title = 'ATLAS Admin';
                 <a href="code.php?preview=1<?= $sample ? '&task=' . htmlspecialchars(urlencode($sample)) : '' ?>" target="_blank" rel="noopener" class="btn btn-sm btn-outline-info">Test coding &#8599;</a>
                 <a href="<?= $base_url ?>&view=coding_seed" onclick="return confirm('Build coding tasks from the 300 completed Prolific participants? Existing tasks are kept (idempotent).')" class="btn btn-sm btn-primary">Seed tasks</a>
                 <a href="<?= $base_url ?>&view=coding_csv&sample=24&alloc=3" class="btn btn-sm btn-outline-warning">Test-run CSV (~24 &times;3)</a>
-                <a href="<?= $base_url ?>&view=coding_csv&alloc=3" class="btn btn-sm btn-outline-success">Full CSV (&times;3)</a>
+                <a href="<?= $base_url ?>&view=coding_csv&alloc=3" class="btn btn-sm btn-outline-success">Remaining CSV (&times;3)</a>
+                <a href="<?= $base_url ?>&view=coding_csv&alloc=3&all=1" class="btn btn-sm btn-outline-secondary" title="Force every task, e.g. for a full re-code">All <?= $ct_total ?></a>
             </div>
         </div>
 
@@ -846,7 +858,7 @@ $page_title = 'ATLAS Admin';
                 <?php endforeach; ?>
             </table>
             <p class="small text-muted">Sample task URL for Taskflow: <code><?= htmlspecialchars($app_base . '/code.php?task=' . $sample) ?></code><br>
-            CSV format: column A = url, column B = participants per task (allocation). <strong>Test-run CSV</strong> = a stratified ~24-task sample at &times;3 to confirm the pipeline works and agreement looks sane; <strong>Full CSV</strong> = all <?= $ct_total ?> at &times;3 (modal of 3). Same rubric and allocation for both. If your Taskflow flow wants a single column, append <code>&amp;plain=1</code> and set the count in the UI.</p>
+            CSV format: column A = url, column B = participants per task (allocation). <strong>Test-run</strong> = a stratified ~24-task sample at &times;3 to confirm the pipeline works. <strong>Remaining</strong> = every task that does not yet have its 3 human ratings, so the test-run tasks are not re-coded and their data is kept (before any coding this is all <?= $ct_total ?>). <strong>All</strong> forces every task (re-code). Same rubric and &times;3 throughout. Single-column flow: append <code>&amp;plain=1</code>.</p>
         <?php endif; ?>
     </div></div>
 
