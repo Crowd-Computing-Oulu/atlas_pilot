@@ -1,6 +1,12 @@
 <?php
 
-const DEFAULT_CODING_INSTRUCTIONS = <<<'TXT'
+function check(bool $cond, string $msg): void {
+    if (!$cond) { fwrite(STDERR, "FAIL: $msg\n"); exit(1); }
+}
+
+// $expected is the verbatim content of the $system string in analyse_practice()
+// as it existed before the refactor. Copied byte-for-byte from app/llm.php.
+$expected = <<<'TXT'
 You analyse a free-text description of a self-care practice that a person uses specifically when feeling stressed or anxious. You score how specifically the text encodes three dimensions, using the rubric below. You do NOT rewrite, improve, or add to the person's text. You only assess what is already there, and where a dimension is below the top level you offer one short, optional suggestion of what kind of detail could be added.
 
 Dimensions and 0-3 specificity levels:
@@ -26,9 +32,7 @@ MODE (how the practice is enacted; technique-conditional, so any clear mode desc
 If the text describes more than one distinct practice (for example breathing AND a walk), score the PRIMARY practice only: the one the writer leads with or describes in the most detail. Dosage and Mode then refer to that primary practice. Separately report technique_count, the number of distinct practices described (1, 2, or 3 for three or more).
 
 For each dimension return: value (a short phrase capturing what was said, or null if absent), level (integer 0-3 from the rubric), and hint (a short, friendly, OPTIONAL suggestion of what detail could be added; use an empty string when level is 3). Keep hints gentle and never imply the person did something wrong.
-TXT;
 
-const CODING_OUTPUT_CONTRACT = <<<'TXT'
 Respond ONLY with valid JSON in exactly this format:
 {
   "technique": {"value": "...", "level": 0, "hint": "..."},
@@ -38,75 +42,30 @@ Respond ONLY with valid JSON in exactly this format:
 }
 TXT;
 
-function default_coding_system_prompt(): string {
-    return DEFAULT_CODING_INSTRUCTIONS . "\n\n" . CODING_OUTPUT_CONTRACT;
-}
+require __DIR__ . '/../app/llm.php';
 
-function call_claude(string $system_prompt, string $user_message, ?string $model = null): ?array {
-    $config = require __DIR__ . '/config.php';
+check(function_exists('default_coding_system_prompt'), 'default_coding_system_prompt() missing');
 
-    $payload = json_encode([
-        'model' => $model ?: $config['llm_model'],
-        'max_tokens' => 1024,
-        'messages' => [
-            ['role' => 'system', 'content' => $system_prompt],
-            ['role' => 'user', 'content' => $user_message],
-        ],
-    ]);
+$got = default_coding_system_prompt();
 
-    // OpenRouter (OpenAI-compatible chat completions endpoint).
-    $ch = curl_init('https://openrouter.ai/api/v1/chat/completions');
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => $payload,
-        CURLOPT_HTTPHEADER => [
-            'Content-Type: application/json',
-            'Authorization: Bearer ' . $config['llm_api_key'],
-            'X-Title: ATLAS Pilot',
-        ],
-        CURLOPT_TIMEOUT => 30,
-    ]);
-
-    $response = curl_exec($ch);
-    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-    if ($http_code !== 200 || $response === false) {
-        return null;
-    }
-
-    $data = json_decode($response, true);
-    $text = $data['choices'][0]['message']['content'] ?? null;
-    if (!$text) return null;
-
-    return ['text' => $text, 'raw' => $response];
-}
-
-/**
- * Score a free-text practice description on the 0-3 specificity rubric for each
- * dimension (Technique, Dosage, Mode). The model only assesses the text; it never
- * rewrites it. Returns per-dimension {value, level (0-3), hint} plus _raw, or null
- * if the call/parse fails.
- */
-function analyse_practice(string $description, ?string $model = null): ?array {
-    $system = default_coding_system_prompt();
-
-    $result = call_claude($system, "Description: " . $description, $model);
-    if (!$result) return null;
-
-    $json_match = [];
-    if (preg_match('/\{[\s\S]*\}/', $result['text'], $json_match)) {
-        $parsed = json_decode($json_match[0], true);
-        if ($parsed && isset($parsed['technique'], $parsed['dosage'], $parsed['mode'])) {
-            foreach (['technique', 'dosage', 'mode'] as $d) {
-                $parsed[$d]['level'] = max(0, min(3, (int)($parsed[$d]['level'] ?? 0)));
-                $parsed[$d]['value'] = ($parsed[$d]['value'] ?? null) ?: null;
-                $parsed[$d]['hint'] = (string)($parsed[$d]['hint'] ?? '');
-            }
-            $parsed['technique_count'] = max(1, min(3, (int)($parsed['technique_count'] ?? 1)));
-            $parsed['_raw'] = $result['raw'];
-            return $parsed;
+if ($got !== $expected) {
+    $len = min(strlen($got), strlen($expected));
+    $first_diff = $len; // default: lengths differ
+    for ($i = 0; $i < $len; $i++) {
+        if ($got[$i] !== $expected[$i]) {
+            $first_diff = $i;
+            break;
         }
     }
-    return null;
+    $start = max(0, $first_diff - 40);
+    $got_window    = substr($got,      $start, 80);
+    $expected_window = substr($expected, $start, 80);
+    fwrite(STDERR, "First differing byte offset: $first_diff\n");
+    fwrite(STDERR, "strlen(got)=" . strlen($got) . " strlen(expected)=" . strlen($expected) . "\n");
+    fwrite(STDERR, "got     [offset $start]: " . json_encode($got_window)      . "\n");
+    fwrite(STDERR, "expected[offset $start]: " . json_encode($expected_window) . "\n");
 }
+
+check($got === $expected, 'default prompt does not match the original byte-for-byte');
+
+echo "Task2 prompt OK\n";
