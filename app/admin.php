@@ -279,6 +279,42 @@ if ($view === 'openrouter_refresh') {
     exit;
 }
 
+// Batch-code one run: code up to N tasks this run has not coded yet. Restartable.
+if ($view === 'coding_run_code' && isset($_GET['run'])) {
+    @set_time_limit(0);
+    require_once __DIR__ . '/llm.php';
+    $run = $db->querySingle("SELECT * FROM coding_runs WHERE id = " . (int)$_GET['run'], true);
+    if (!$run) { header("Location: {$base_url}&view=coding"); exit; }
+    $budget = max(1, min(60, (int)($_GET['n'] ?? 10)));
+    $coded = 0; $failed = 0;
+    $sel = $db->prepare("SELECT t.id, t.text_content FROM coding_tasks t
+                         WHERE NOT EXISTS (SELECT 1 FROM codings c WHERE c.task_id = t.id AND c.run_id = :rid)
+                         ORDER BY t.id LIMIT :lim");
+    $sel->bindValue(':rid', (int)$run['id'], SQLITE3_INTEGER);
+    $sel->bindValue(':lim', $budget, SQLITE3_INTEGER);
+    $pending = [];
+    $r = $sel->execute();
+    while ($row = $r->fetchArray(SQLITE3_ASSOC)) { $pending[] = $row; }
+    foreach ($pending as $row) {
+        $parsed = analyse_practice($row['text_content'], $run['model'], $run['full_prompt'], $run['temperature']);
+        if (!$parsed) { $failed++; continue; }
+        $ins = $db->prepare("INSERT INTO codings (task_id, source, run_id, technique, dosage, mode, technique_count, raw_llm_response)
+                             VALUES (:tid, :src, :rid, :t, :d, :mo, :tc, :raw)");
+        $ins->bindValue(':tid', (int)$row['id'], SQLITE3_INTEGER);
+        $ins->bindValue(':src', $run['model'], SQLITE3_TEXT);
+        $ins->bindValue(':rid', (int)$run['id'], SQLITE3_INTEGER);
+        $ins->bindValue(':t', (int)$parsed['technique']['level'], SQLITE3_INTEGER);
+        $ins->bindValue(':d', (int)$parsed['dosage']['level'], SQLITE3_INTEGER);
+        $ins->bindValue(':mo', (int)$parsed['mode']['level'], SQLITE3_INTEGER);
+        $ins->bindValue(':tc', (int)($parsed['technique_count'] ?? 1), SQLITE3_INTEGER);
+        $ins->bindValue(':raw', $parsed['_raw'] ?? null, SQLITE3_TEXT);
+        $ins->execute();
+        $coded++;
+    }
+    header("Location: {$base_url}&view=coding&run_coded={$coded}&run_failed={$failed}");
+    exit;
+}
+
 // Delete a single coding (rating).
 if ($view === 'coding_delete' && isset($_GET['cid'])) {
     $cid = (int)$_GET['cid'];
@@ -957,6 +993,41 @@ $page_title = 'ATLAS Admin';
             <pre class="bg-light p-2 small mb-2" style="white-space:pre-wrap;"><?= htmlspecialchars($output_contract) ?></pre>
             <button class="btn btn-sm btn-primary" type="submit">Create run</button>
         </form>
+    </div></div>
+
+    <?php if (isset($_GET['run_coded'])): ?><div class="alert alert-info">Run coded <?= (int)$_GET['run_coded'] ?> task(s); <?= (int)($_GET['run_failed'] ?? 0) ?> failed.</div><?php endif; ?>
+    <?php if (isset($_GET['run_created'])): ?><div class="alert alert-success">Run #<?= (int)$_GET['run_created'] ?> created.</div><?php endif; ?>
+    <div class="card mb-3"><div class="card-body">
+        <h6>Coding runs</h6>
+        <?php if (!$runs): ?>
+            <p class="text-muted small mb-0">No runs yet. Create one above.</p>
+        <?php else: ?>
+        <table class="table table-sm align-middle">
+            <thead><tr><th>#</th><th>Label</th><th>Model</th><th>Temp</th><th>Coverage</th><th>Status</th><th>Code</th><th></th></tr></thead>
+            <tbody>
+            <?php foreach ($runs as $run): $coded = (int)$run['coded']; $remaining = max(0, $ct_total - $coded); ?>
+                <tr<?= $run['status'] === 'archived' ? ' class="text-muted"' : '' ?>>
+                    <td><?= (int)$run['id'] ?></td>
+                    <td><?= htmlspecialchars($run['label'] ?? '—') ?></td>
+                    <td><code><?= htmlspecialchars($run['model']) ?></code></td>
+                    <td><?= $run['temperature'] === null ? '—' : htmlspecialchars((string)$run['temperature']) ?></td>
+                    <td><?= $coded ?> / <?= $ct_total ?> (<?= fmt_pct($coded, $ct_total) ?>)</td>
+                    <td><?= htmlspecialchars($run['status']) ?></td>
+                    <td>
+                        <?php if ($run['status'] === 'active' && $remaining > 0): ?>
+                            <a href="<?= $base_url ?>&view=coding_run_code&run=<?= (int)$run['id'] ?>&n=10" class="btn btn-sm btn-outline-primary py-0">+10</a>
+                            <a href="<?= $base_url ?>&view=coding_run_code&run=<?= (int)$run['id'] ?>&n=40" class="btn btn-sm btn-outline-primary py-0">+40</a>
+                        <?php elseif ($remaining === 0): ?><span class="badge bg-success">done</span><?php endif; ?>
+                    </td>
+                    <td>
+                        <a href="<?= $base_url ?>&view=coding_run_archive&run=<?= (int)$run['id'] ?>" class="small text-decoration-none" title="Toggle archive"><?= $run['status'] === 'archived' ? 'unarchive' : 'archive' ?></a>
+                        &nbsp;<a href="<?= $base_url ?>&view=coding_run_delete&run=<?= (int)$run['id'] ?>" onclick="return confirm('Delete run #<?= (int)$run['id'] ?> and its <?= $coded ?> ratings?')" class="text-danger small text-decoration-none">delete</a>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+        <?php endif; ?>
     </div></div>
 
     <?php
