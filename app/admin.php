@@ -1053,6 +1053,36 @@ $page_title = 'ATLAS Admin';
     </div></div>
 
     <?php
+    require_once __DIR__ . '/coding_stats.php';
+    $human_rating_rows = fetch_all($db, "SELECT rater_pid, coding_seconds, technique_count FROM codings WHERE source='human'");
+    $raters = rater_overview($human_rating_rows, RATER_FAST_SECONDS);
+    ?>
+    <div class="card mb-3"><div class="card-body">
+        <h6>Raters (<?= count($raters) ?>) <span class="text-muted small fw-normal">— most suspicious first; click a rater to see their rated texts</span></h6>
+        <?php if (!$raters): ?>
+            <p class="text-muted small mb-0">No human ratings yet.</p>
+        <?php else: ?>
+            <div style="max-height: 420px; overflow:auto;">
+            <table class="table table-sm table-hover">
+                <thead><tr><th>Rater</th><th>n</th><th>median s</th><th>min s</th><th>&lt;<?= RATER_FAST_SECONDS ?>s</th><th>#Prac (1/2/3+)</th></tr></thead>
+                <tbody>
+                <?php foreach ($raters as $r): $fast = $r['median'] !== null && $r['median'] < RATER_FAST_SECONDS; ?>
+                    <tr<?= $fast ? ' class="table-danger"' : '' ?>>
+                        <td class="small"><a href="<?= $base_url ?>&view=coding_rater&pid=<?= htmlspecialchars(urlencode($r['pid'])) ?>"><?= htmlspecialchars($r['pid']) ?></a></td>
+                        <td><?= (int)$r['n'] ?></td>
+                        <td><?= $r['median'] === null ? '—' : round($r['median']) ?></td>
+                        <td><?= $r['min'] === null ? '—' : (int)$r['min'] ?></td>
+                        <td><?= $r['n_fast'] ?>/<?= $r['n_timed'] ?><?= $r['n_timed'] ? ' (' . round(100 * $r['pct_fast']) . '%)' : '' ?></td>
+                        <td class="small"><?= $r['tc']['1'] ?> / <?= $r['tc']['2'] ?> / <?= $r['tc']['3'] ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+            </div>
+        <?php endif; ?>
+    </div></div>
+
+    <?php
     $all_codings = fetch_all($db, "SELECT c.id, c.source, c.rater_pid, c.technique, c.dosage, c.mode, c.technique_count, c.created_at,
                                           t.participant_id, t.condition_num, t.text_role
                                    FROM codings c JOIN coding_tasks t ON t.id = c.task_id
@@ -1074,7 +1104,7 @@ $page_title = 'ATLAS Admin';
                         <td>C<?= (int)$c['condition_num'] ?></td>
                         <td><?= htmlspecialchars($c['text_role']) ?></td>
                         <td><?= $c['source'] === 'human' ? 'human' : '<code>'.htmlspecialchars($c['source']).'</code>' ?></td>
-                        <td class="small"><?= htmlspecialchars($c['rater_pid'] ?? '—') ?></td>
+                        <td class="small"><?php if ($c['source'] === 'human' && $c['rater_pid']): ?><a href="<?= $base_url ?>&view=coding_rater&pid=<?= htmlspecialchars(urlencode($c['rater_pid'])) ?>"><?= htmlspecialchars($c['rater_pid']) ?></a><?php else: ?><?= htmlspecialchars($c['rater_pid'] ?? '—') ?><?php endif; ?></td>
                         <td><?= $c['technique'] ?></td>
                         <td><?= $c['dosage'] ?></td>
                         <td><?= $c['mode'] ?></td>
@@ -1088,6 +1118,51 @@ $page_title = 'ATLAS Admin';
             </div>
         <?php endif; ?>
     </div></div>
+
+<?php elseif ($view === 'coding_rater'): ?>
+    <?php
+    require_once __DIR__ . '/coding_stats.php';
+    $rpid = $_GET['pid'] ?? '';
+    $stmt = $db->prepare("SELECT c.technique, c.dosage, c.mode, c.technique_count, c.coding_seconds, c.created_at, c.rater_pid,
+                                 t.text_content, t.condition_num, t.text_role
+                          FROM codings c JOIN coding_tasks t ON t.id = c.task_id
+                          WHERE c.source='human' AND c.rater_pid = :pid
+                          ORDER BY c.created_at");
+    $stmt->bindValue(':pid', $rpid, SQLITE3_TEXT);
+    $res = $stmt->execute();
+    $rrows = []; while ($row = $res->fetchArray(SQLITE3_ASSOC)) $rrows[] = $row;
+    $sum = rater_overview($rrows, RATER_FAST_SECONDS)[0] ?? null;
+    ?>
+    <a href="<?= $base_url ?>&view=coding" class="small">&larr; back to coding</a>
+    <h5 class="mt-2">Rater <code><?= htmlspecialchars($rpid) ?></code></h5>
+    <?php if (!$rrows): ?>
+        <p class="text-muted">No ratings for this rater.</p>
+    <?php else: ?>
+        <p class="small text-muted">
+            <?= (int)$sum['n'] ?> ratings &middot;
+            median <?= $sum['median'] === null ? '—' : round($sum['median']) ?>s &middot;
+            min <?= $sum['min'] === null ? '—' : (int)$sum['min'] ?>s &middot;
+            <?= $sum['n_fast'] ?>/<?= $sum['n_timed'] ?> under <?= RATER_FAST_SECONDS ?>s &middot;
+            #practices 1/2/3+ = <?= $sum['tc']['1'] ?>/<?= $sum['tc']['2'] ?>/<?= $sum['tc']['3'] ?>
+        </p>
+        <table class="table table-sm">
+            <thead><tr><th>Cond/Role</th><th>Text</th><th>T</th><th>D</th><th>M</th><th>#Prac</th><th>Secs</th><th>When</th></tr></thead>
+            <tbody>
+            <?php foreach ($rrows as $c): $fast = $c['coding_seconds'] !== null && (int)$c['coding_seconds'] < RATER_FAST_SECONDS; ?>
+                <tr<?= $fast ? ' class="table-danger"' : '' ?>>
+                    <td class="small text-nowrap">C<?= (int)$c['condition_num'] ?> <?= htmlspecialchars($c['text_role']) ?></td>
+                    <td class="small" style="min-width:320px;white-space:pre-wrap;"><?= htmlspecialchars($c['text_content']) ?></td>
+                    <td><?= (int)$c['technique'] ?></td>
+                    <td><?= (int)$c['dosage'] ?></td>
+                    <td><?= (int)$c['mode'] ?></td>
+                    <td><?= $c['technique_count'] === null ? '—' : ((int)$c['technique_count'] === 3 ? '3+' : (int)$c['technique_count']) ?></td>
+                    <td class="<?= $fast ? 'fw-bold' : '' ?>"><?= $c['coding_seconds'] === null ? '—' : (int)$c['coding_seconds'] ?></td>
+                    <td class="small text-muted text-nowrap"><?= htmlspecialchars($c['created_at']) ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    <?php endif; ?>
 
 <?php endif; ?>
 
