@@ -77,5 +77,6 @@ foreach ([1,2,3] as $i) check($ref->getParameters()[$i]->isOptional(), "analyse_
 $cref = new ReflectionFunction('call_claude');
 $cparams = array_map(fn($p) => $p->getName(), $cref->getParameters());
 check($cparams === ['system_prompt','user_message','model','temperature'], 'call_claude signature: ' . implode(',', $cparams));
+foreach ([2,3] as $i) check($cref->getParameters()[$i]->isOptional(), "call_claude param $i must be optional");
 
-echo "Task2 prompt OK\n";
+echo "Task 2+3 prompt + signature checks OK\n";

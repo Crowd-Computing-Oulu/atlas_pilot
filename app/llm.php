@@ -53,6 +53,8 @@ function call_claude(string $system_prompt, string $user_message, ?string $model
             ['role' => 'user', 'content' => $user_message],
         ],
     ];
+    // Temperature is normalised at the form boundary (blank -> null); the '' check
+    // is belt-and-suspenders so a stray empty string never becomes 0.0.
     if ($temperature !== null && $temperature !== '') {
         $body['temperature'] = (float)$temperature;
     }
