@@ -823,7 +823,7 @@ $page_title = 'ATLAS Admin';
             <div>
                 <a href="code.php?preview=1<?= $sample ? '&task=' . htmlspecialchars(urlencode($sample)) : '' ?>" target="_blank" rel="noopener" class="btn btn-sm btn-outline-info">Test coding &#8599;</a>
                 <a href="<?= $base_url ?>&view=coding_seed" onclick="return confirm('Build coding tasks from the 300 completed Prolific participants? Existing tasks are kept (idempotent).')" class="btn btn-sm btn-primary">Seed tasks</a>
-                <a href="<?= $base_url ?>&view=coding_csv&sample=48&alloc=5" class="btn btn-sm btn-outline-warning">Pilot CSV (~48 &times;5)</a>
+                <a href="<?= $base_url ?>&view=coding_csv&sample=24&alloc=3" class="btn btn-sm btn-outline-warning">Test-run CSV (~24 &times;3)</a>
                 <a href="<?= $base_url ?>&view=coding_csv&alloc=3" class="btn btn-sm btn-outline-success">Full CSV (&times;3)</a>
             </div>
         </div>
@@ -846,7 +846,7 @@ $page_title = 'ATLAS Admin';
                 <?php endforeach; ?>
             </table>
             <p class="small text-muted">Sample task URL for Taskflow: <code><?= htmlspecialchars($app_base . '/code.php?task=' . $sample) ?></code><br>
-            CSV format: column A = url, column B = participants per task (allocation). <strong>Pilot CSV</strong> = a stratified ~48-task sample at &times;5 raters to calibrate the rubric first; <strong>Full CSV</strong> = all <?= $ct_total ?> at &times;3 (paper protocol: modal of 3). If your Taskflow flow wants a single column, append <code>&amp;plain=1</code> and set the count in the UI.</p>
+            CSV format: column A = url, column B = participants per task (allocation). <strong>Test-run CSV</strong> = a stratified ~24-task sample at &times;3 to confirm the pipeline works and agreement looks sane; <strong>Full CSV</strong> = all <?= $ct_total ?> at &times;3 (modal of 3). Same rubric and allocation for both. If your Taskflow flow wants a single column, append <code>&amp;plain=1</code> and set the count in the UI.</p>
         <?php endif; ?>
     </div></div>
 
