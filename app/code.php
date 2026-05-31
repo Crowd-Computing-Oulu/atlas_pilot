@@ -2,10 +2,13 @@
 /**
  * Crowd specificity-coding route (post-hoc human rating of T/D/M).
  *
- * One coding task per blinded text. Distributed via Prolific Taskflow: each task
- * is a unique URL (code.php?task=TOKEN) with a per-task rater allocation, so two
- * (or more) independent raters score every text. The coder sees ONLY the text and
- * the rubric, never the condition or whether it is a C3 first/final snapshot.
+ * One coding task per blinded text. Distribution: a single shared study URL
+ * (code.php, no token) routes each rater to the least-rated task they have not
+ * yet coded, so coverage fills evenly toward target_raters. Prolific is set to
+ * "Multiple submissions" so one rater can return for several tasks; each
+ * submission is one task. Direct per-task URLs (code.php?task=TOKEN) still work.
+ * The coder sees ONLY the text and the rubric, never the condition or whether it
+ * is a C3 first/final snapshot.
  */
 
 require_once __DIR__ . '/db.php';
@@ -36,6 +39,37 @@ if ($preview && !$task) {
             . "Sometimes I also go for a short walk, maybe ten minutes around the block, and I put on some quiet music. "
             . "I usually do this on my own.",
     ];
+}
+
+// Router mode: a rater landed on the shared URL with no specific task. Serve the
+// least-rated open task they have not coded yet, so a single URL fills coverage
+// evenly and returning raters always get a fresh text. RANDOM() breaks ties so
+// concurrent raters spread across the equally-least-rated set instead of colliding.
+$router_exhausted = false;
+if (!$task && !$preview && $token === '') {
+    if ($pid !== '') {
+        $sel = $db->prepare(
+            "SELECT t.* FROM coding_tasks t
+             WHERE (SELECT COUNT(*) FROM codings c WHERE c.task_id = t.id AND c.source = 'human') < t.target_raters
+               AND t.id NOT IN (SELECT task_id FROM codings WHERE source = 'human' AND rater_pid = :pid)
+             ORDER BY (SELECT COUNT(*) FROM codings c WHERE c.task_id = t.id AND c.source = 'human') ASC, RANDOM()
+             LIMIT 1");
+        $sel->bindValue(':pid', $pid, SQLITE3_TEXT);
+    } else {
+        // No PID (e.g. a test landing): just serve the globally least-rated open task.
+        $sel = $db->prepare(
+            "SELECT t.* FROM coding_tasks t
+             WHERE (SELECT COUNT(*) FROM codings c WHERE c.task_id = t.id AND c.source = 'human') < t.target_raters
+             ORDER BY (SELECT COUNT(*) FROM codings c WHERE c.task_id = t.id AND c.source = 'human') ASC, RANDOM()
+             LIMIT 1");
+    }
+    $task = $sel->execute()->fetchArray(SQLITE3_ASSOC);
+    if ($task) {
+        $token = $task['token'];
+    } else {
+        // Every task is at target, or this rater has already coded all open tasks.
+        $router_exhausted = true;
+    }
 }
 
 // Rubric: dimension-specific 0-3 anchors, mirroring llm.php so human and model
@@ -104,8 +138,8 @@ if ($task && $_SERVER['REQUEST_METHOD'] === 'POST' && ($preview || !$already)) {
         $done = true;
     } elseif (!$error) {
         $ins = $db->prepare(
-            "INSERT INTO codings (task_id, source, rater_pid, session_id, technique, dosage, mode, technique_count, notes)
-             VALUES (:tid, 'human', :pid, :sid, :t, :d, :m, :tc, :notes)"
+            "INSERT INTO codings (task_id, source, rater_pid, session_id, technique, dosage, mode, technique_count)
+             VALUES (:tid, 'human', :pid, :sid, :t, :d, :m, :tc)"
         );
         $ins->bindValue(':tid', $task['id'], SQLITE3_INTEGER);
         $ins->bindValue(':pid', $pid !== '' ? $pid : null, $pid !== '' ? SQLITE3_TEXT : SQLITE3_NULL);
@@ -114,7 +148,6 @@ if ($task && $_SERVER['REQUEST_METHOD'] === 'POST' && ($preview || !$already)) {
         $ins->bindValue(':d', $vals['dosage'], SQLITE3_INTEGER);
         $ins->bindValue(':m', $vals['mode'], SQLITE3_INTEGER);
         $ins->bindValue(':tc', $vals['technique_count'], SQLITE3_INTEGER);
-        $ins->bindValue(':notes', trim($_POST['notes'] ?? '') ?: null, SQLITE3_TEXT);
         $ins->execute();
         $done = true;
     }
@@ -123,7 +156,16 @@ if ($task && $_SERVER['REQUEST_METHOD'] === 'POST' && ($preview || !$already)) {
 $page_title = 'ATLAS — Specificity Coding';
 require __DIR__ . '/templates/header.php';
 
-if (!$task):
+if ($router_exhausted):
+    $return_url = ($config['coding_completion_url'] ?? '') ?: (($config['prolific_completion_url'] ?? '') ?: 'https://app.prolific.com/submissions/complete');
+    ?>
+    <div class="study-card">
+        <h4 class="mb-3">All caught up</h4>
+        <p>There are no more texts available for you to rate right now. Thank you for your work.</p>
+        <a href="<?= htmlspecialchars($return_url) ?>" class="btn btn-primary btn-lg w-100 mt-2">Return to Prolific</a>
+    </div>
+    <?php
+elseif (!$task):
     ?>
     <div class="study-card">
         <h4>Task not found</h4>
@@ -202,11 +244,6 @@ else:
                     </div>
                 <?php endforeach; ?>
             </fieldset>
-
-            <div class="mb-3">
-                <label class="form-label small text-muted" for="notes">Optional: anything ambiguous about this text?</label>
-                <textarea class="form-control" id="notes" name="notes" rows="2"><?= htmlspecialchars($_POST['notes'] ?? '') ?></textarea>
-            </div>
 
             <button type="submit" class="btn btn-primary btn-lg w-100">Submit rating</button>
         </form>
