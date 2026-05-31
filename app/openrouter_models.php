@@ -19,7 +19,11 @@ function parse_openrouter_models(string $json): array {
 
 function write_openrouter_cache(array $config, array $models): void {
     $path = openrouter_models_cache_path($config);
-    @mkdir(dirname($path), 0755, true);
+    $dir = dirname($path);
+    if (!is_dir($dir) && !@mkdir($dir, 0755, true)) {
+        error_log("openrouter cache: could not create dir $dir");
+        return;
+    }
     file_put_contents($path, json_encode(['fetched_at' => time(), 'models' => $models]));
 }
 
@@ -41,7 +45,6 @@ function fetch_openrouter_models(array $config): ?array {
     ]);
     $resp = curl_exec($ch);
     $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
     if ($code !== 200 || $resp === false) return null;
     return parse_openrouter_models($resp);
 }
