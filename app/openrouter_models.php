@@ -27,12 +27,25 @@ function write_openrouter_cache(array $config, array $models): void {
     file_put_contents($path, json_encode(['fetched_at' => time(), 'models' => $models]));
 }
 
+// Order: the main providers first (anthropic, openai, x-ai, google), then everything
+// else alphabetically. Within each group, models are sorted alphabetically by name.
+function sort_openrouter_models(array $models): array {
+    $priority = ['anthropic' => 0, 'openai' => 1, 'x-ai' => 2, 'xai' => 2, 'google' => 3];
+    usort($models, function ($a, $b) use ($priority) {
+        $pa = $priority[strtolower(explode('/', $a['id'])[0])] ?? 4;
+        $pb = $priority[strtolower(explode('/', $b['id'])[0])] ?? 4;
+        if ($pa !== $pb) return $pa <=> $pb;
+        return strcasecmp($a['name'], $b['name']);
+    });
+    return $models;
+}
+
 function load_openrouter_models(array $config): array {
     $path = openrouter_models_cache_path($config);
     if (!is_file($path)) return ['fetched_at' => 0, 'models' => []];
     $data = json_decode((string)file_get_contents($path), true);
     if (!is_array($data) || !isset($data['models'])) return ['fetched_at' => 0, 'models' => []];
-    return ['fetched_at' => (int)($data['fetched_at'] ?? 0), 'models' => $data['models']];
+    return ['fetched_at' => (int)($data['fetched_at'] ?? 0), 'models' => sort_openrouter_models($data['models'])];
 }
 
 // Network fetch; returns the parsed model list or null on failure. Callers persist via write_openrouter_cache.
