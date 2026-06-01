@@ -190,11 +190,15 @@ code_all <- function(model = LLM_MODEL, out_path = out_path_for(model), verbose 
   invisible(results)
 }
 
-# The three-LLM panel (one independent frontier model per lab), all temp 0.
+# The LLM panel: widely-used production model per lab, all temp 0. Gemini uses
+# the fast Flash tier (consistent with Sonnet being Anthropic's workhorse); the
+# slower 3.1 Pro run is archived out of data/ for a Pro-vs-Flash comparison.
 PANEL_MODELS <- c(
   "anthropic/claude-sonnet-4.6",
   "openai/gpt-5.5",
-  "google/gemini-3.1-pro-preview"
+  "google/gemini-3.5-flash",
+  "x-ai/grok-4.3",
+  "deepseek/deepseek-v3.2"
 )
 
 # Run when invoked directly: code whichever model is named on the command line
