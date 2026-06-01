@@ -150,56 +150,22 @@ if ($view === 'coding_seed') {
     exit;
 }
 
-// Export task URLs for Prolific Taskflow. One row per task (no repeated URLs).
-//   column A = url, column B = participants/allocation per task (Taskflow's per-task rater count).
-// Params: &alloc=N sets column B (default 3); &sample=N exports a stratified pilot subset
-// (balanced across condition x role); &plain=1 emits url-only if your Taskflow flow wants a single column.
+// CSV of every Taskflow task URL, one per row (single column: url). One row per coding task.
+// Allocation (raters per task) and any other Taskflow columns are added downstream as needed.
 if ($view === 'coding_csv') {
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
     $base = ($config['app_base_url'] ?? '') ?: ($scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost'));
     $base = rtrim($base, '/');
-    $alloc = max(1, min(50, (int)($_GET['alloc'] ?? 3)));
-    $sample = isset($_GET['sample']) ? max(1, (int)$_GET['sample']) : 0;
-    $plain = ($_GET['plain'] ?? '') === '1';
-
     $tokens = [];
-    $kind = 'remaining';
-    if ($sample > 0) {
-        // Stratified by condition x role so the test run spans every text type.
-        $kind = 'testrun';
-        $strata = fetch_all($db, "SELECT condition_num, text_role FROM coding_tasks GROUP BY condition_num, text_role ORDER BY condition_num, text_role");
-        $per = (int)ceil($sample / max(1, count($strata)));
-        foreach ($strata as $s) {
-            $st = $db->prepare("SELECT token FROM coding_tasks WHERE condition_num=:c AND text_role=:r ORDER BY id LIMIT :l");
-            $st->bindValue(':c', $s['condition_num'], SQLITE3_INTEGER);
-            $st->bindValue(':r', $s['text_role'], SQLITE3_TEXT);
-            $st->bindValue(':l', $per, SQLITE3_INTEGER);
-            $res = $st->execute();
-            while ($row = $res->fetchArray(SQLITE3_ASSOC)) { $tokens[] = $row['token']; }
-        }
-    } elseif (($_GET['all'] ?? '') === '1') {
-        // Force every task (e.g. for a full re-code).
-        $kind = 'all';
-        $res = $db->query("SELECT token FROM coding_tasks ORDER BY id");
-        while ($row = $res->fetchArray(SQLITE3_ASSOC)) { $tokens[] = $row['token']; }
-    } else {
-        // Default: only tasks that still lack their target human ratings, so a prior
-        // test run is not re-coded and its data is kept. Before any coding this is all 404.
-        $res = $db->query("SELECT t.token FROM coding_tasks t
-                           WHERE (SELECT COUNT(*) FROM codings c WHERE c.task_id=t.id AND c.source='human') < t.target_raters
-                           ORDER BY t.id");
-        while ($row = $res->fetchArray(SQLITE3_ASSOC)) { $tokens[] = $row['token']; }
-    }
-
+    $res = $db->query("SELECT token FROM coding_tasks ORDER BY id");
+    while ($row = $res->fetchArray(SQLITE3_ASSOC)) { $tokens[] = $row['token']; }
     header('Content-Type: text/csv');
-    $fn = "taskflow_{$kind}_" . count($tokens) . "_x{$alloc}";
-    header("Content-Disposition: attachment; filename={$fn}_" . date('Y-m-d') . ".csv");
+    header('Content-Disposition: attachment; filename=taskflow_urls_' . count($tokens) . '.csv');
     $out = fopen('php://output', 'w');
     // Explicit escape '' = standard CSV and future-proofs the PHP 8.4 fputcsv deprecation.
-    fputcsv($out, $plain ? ['url'] : ['url', 'participants'], ',', '"', '');
+    fputcsv($out, ['url'], ',', '"', '');
     foreach ($tokens as $t) {
-        $url = $base . '/code.php?task=' . $t;
-        fputcsv($out, $plain ? [$url] : [$url, $alloc], ',', '"', '');
+        fputcsv($out, [$base . '/code.php?task=' . $t], ',', '"', '');
     }
     fclose($out);
     exit;
@@ -944,10 +910,8 @@ $page_title = 'ATLAS Admin';
             <h5 class="mb-0">Specificity Coding</h5>
             <div>
                 <a href="code.php?preview=1<?= $sample ? '&task=' . htmlspecialchars(urlencode($sample)) : '' ?>" target="_blank" rel="noopener" class="btn btn-sm btn-outline-info">Test coding &#8599;</a>
-                <a href="<?= $base_url ?>&view=coding_seed" onclick="return confirm('Build coding tasks from the 300 completed Prolific participants? Existing tasks are kept (idempotent).')" class="btn btn-sm btn-primary">Seed tasks</a>
-                <a href="<?= $base_url ?>&view=coding_csv&sample=24&alloc=3" class="btn btn-sm btn-outline-warning">Test-run CSV (~24 &times;3)</a>
-                <a href="<?= $base_url ?>&view=coding_csv&alloc=3" class="btn btn-sm btn-outline-success">Remaining CSV (&times;3)</a>
-                <a href="<?= $base_url ?>&view=coding_csv&alloc=3&all=1" class="btn btn-sm btn-outline-secondary" title="Force every task, e.g. for a full re-code">All <?= $ct_total ?></a>
+                <a href="<?= $base_url ?>&view=coding_seed" onclick="return confirm('Build coding tasks from completed participants? Existing tasks are kept (idempotent).')" class="btn btn-sm btn-primary">Seed tasks</a>
+                <a href="<?= $base_url ?>&view=coding_csv" class="btn btn-sm btn-outline-secondary" title="Download every task URL, one per row">All task URLs (CSV)<?= $ct_total ? ' &middot; ' . $ct_total : '' ?></a>
             </div>
         </div>
 
@@ -969,7 +933,7 @@ $page_title = 'ATLAS Admin';
                 <?php endforeach; ?>
             </table>
             <p class="small text-muted">Sample task URL for Taskflow: <code><?= htmlspecialchars($app_base . '/code.php?task=' . $sample) ?></code><br>
-            CSV format: column A = url, column B = participants per task (allocation). <strong>Test-run</strong> = a stratified ~24-task sample at &times;3 to confirm the pipeline works. <strong>Remaining</strong> = every task that does not yet have its 3 human ratings, so the test-run tasks are not re-coded and their data is kept (before any coding this is all <?= $ct_total ?>). <strong>All</strong> forces every task (re-code). Same rubric and &times;3 throughout. Single-column flow: append <code>&amp;plain=1</code>.</p>
+            <strong>All task URLs (CSV)</strong> exports one row per task (single <code>url</code> column) for every coding task. Add allocation (raters per task) or any other Taskflow columns downstream as needed.</p>
         <?php endif; ?>
     </div></div>
 
