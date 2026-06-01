@@ -354,6 +354,16 @@ if ($view === 'coding_clear_source' && isset($_GET['src'])) {
     exit;
 }
 
+// Cascade-delete ALL human ratings by one rater (purge a garbage rater).
+if ($view === 'coding_rater_delete' && isset($_GET['pid'])) {
+    $stmt = $db->prepare("DELETE FROM codings WHERE source = 'human' AND rater_pid = :pid");
+    $stmt->bindValue(':pid', $_GET['pid'], SQLITE3_TEXT);
+    $stmt->execute();
+    $deleted = $db->changes();
+    header("Location: {$base_url}&view=coding&rater_deleted={$deleted}");
+    exit;
+}
+
 // Helper to run a query and fetch all rows
 function fetch_all(SQLite3 $db, string $sql): array {
     $result = $db->query($sql);
@@ -926,6 +936,7 @@ $page_title = 'ATLAS Admin';
     ?>
 
     <?php if (isset($_GET['seeded'])): ?><div class="alert alert-success">Seeded <?= (int)$_GET['seeded'] ?> new coding task(s).</div><?php endif; ?>
+    <?php if (isset($_GET['rater_deleted'])): ?><div class="alert alert-success">Deleted <?= (int)$_GET['rater_deleted'] ?> rating(s) from rater.</div><?php endif; ?>
     <?php if (isset($_GET['llm_coded'])): ?><div class="alert alert-info">LLM coded <?= (int)$_GET['llm_coded'] ?> task(s); <?= (int)($_GET['llm_failed'] ?? 0) ?> failed.</div><?php endif; ?>
 
     <div class="card mb-3"><div class="card-body">
@@ -1108,7 +1119,13 @@ $page_title = 'ATLAS Admin';
     $sum = rater_overview($rrows, RATER_FAST_SECONDS)[0] ?? null;
     ?>
     <a href="<?= $base_url ?>&view=coding" class="small">&larr; back to coding</a>
-    <h5 class="mt-2">Rater <code><?= htmlspecialchars($rpid) ?></code></h5>
+    <h5 class="mt-2">Rater <code><?= htmlspecialchars($rpid) ?></code>
+        <?php if ($rrows): ?>
+            <a href="<?= $base_url ?>&view=coding_rater_delete&pid=<?= htmlspecialchars(urlencode($rpid)) ?>"
+               class="btn btn-sm btn-danger ms-2"
+               onclick="return confirm('Delete all <?= count($rrows) ?> ratings by rater <?= htmlspecialchars($rpid) ?>? This permanently removes their data and cannot be undone.')">Delete all ratings by this rater</a>
+        <?php endif; ?>
+    </h5>
     <?php if (!$rrows): ?>
         <p class="text-muted">No ratings for this rater.</p>
     <?php else: ?>
