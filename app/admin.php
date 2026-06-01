@@ -913,7 +913,6 @@ $page_title = 'ATLAS Admin';
     $h1 = 0; $h3 = 0;
     foreach ($cov as $c) { if ((int)$c['h'] >= 1) $h1++; if ((int)$c['h'] >= 3) $h3++; }
     $human_total = (int)$db->querySingle("SELECT COUNT(*) FROM codings WHERE source='human'");
-    $models = coding_models($config);
     require_once __DIR__ . '/openrouter_models.php';
     require_once __DIR__ . '/llm.php';
     $or_cache = load_openrouter_models($config);
@@ -921,10 +920,6 @@ $page_title = 'ATLAS Admin';
     $default_instructions = DEFAULT_CODING_INSTRUCTIONS;
     $output_contract = CODING_OUTPUT_CONTRACT;
     $runs = fetch_all($db, "SELECT r.*, (SELECT COUNT(*) FROM codings c WHERE c.run_id=r.id) coded FROM coding_runs r ORDER BY r.id DESC");
-    $model_counts = [];
-    foreach (fetch_all($db, "SELECT source, COUNT(*) n FROM codings WHERE source!='human' AND run_id IS NULL GROUP BY source") as $m) {
-        $model_counts[$m['source']] = (int)$m['n'];
-    }
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
     $app_base = rtrim(($config['app_base_url'] ?? '') ?: ($scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')), '/');
     $sample = $db->querySingle("SELECT token FROM coding_tasks ORDER BY id LIMIT 1");
@@ -965,27 +960,6 @@ $page_title = 'ATLAS Admin';
             <p class="small text-muted">Sample task URL for Taskflow: <code><?= htmlspecialchars($app_base . '/code.php?task=' . $sample) ?></code><br>
             CSV format: column A = url, column B = participants per task (allocation). <strong>Test-run</strong> = a stratified ~24-task sample at &times;3 to confirm the pipeline works. <strong>Remaining</strong> = every task that does not yet have its 3 human ratings, so the test-run tasks are not re-coded and their data is kept (before any coding this is all <?= $ct_total ?>). <strong>All</strong> forces every task (re-code). Same rubric and &times;3 throughout. Single-column flow: append <code>&amp;plain=1</code>.</p>
         <?php endif; ?>
-    </div></div>
-
-    <div class="card mb-3"><div class="card-body">
-        <h6>Multi-model LLM coding</h6>
-        <p class="small text-muted mb-2">Codes each task against the same 0–3 rubric the humans use, once per configured model, for the LLM–human agreement analysis. Runs in restartable batches to avoid timeouts.</p>
-        <table class="table table-sm w-auto">
-            <thead><tr><th>Model</th><th>Tasks coded</th><th>Remaining</th></tr></thead>
-            <?php foreach ($models as $m): $done = $model_counts[$m] ?? 0; ?>
-                <tr>
-                    <td><code><?= htmlspecialchars($m) ?></code></td>
-                    <td><?= $done ?></td>
-                    <td><?= max(0, $ct_total - $done) ?></td>
-                    <td><?php if ($done > 0): ?><a href="<?= $base_url ?>&view=coding_clear_source&src=<?= htmlspecialchars(urlencode($m)) ?>" onclick="return confirm('Delete all <?= htmlspecialchars($done) ?> ratings from this model?')" class="text-danger small">clear</a><?php endif; ?></td>
-                </tr>
-            <?php endforeach; ?>
-        </table>
-        <?php if ($ct_total > 0): ?>
-            <a href="<?= $base_url ?>&view=coding_llm&n=10" class="btn btn-sm btn-outline-primary">Code next 10</a>
-            <a href="<?= $base_url ?>&view=coding_llm&n=40" class="btn btn-sm btn-outline-primary">Code next 40</a>
-        <?php endif; ?>
-        <p class="small text-muted mt-2 mb-0">Configure additional models with <code>'coding_models' =&gt; ['anthropic/claude-sonnet-4.6', '&lt;openrouter-slug&gt;', ...]</code> in <code>config.php</code>. Currently using <?= count($models) ?> model(s).</p>
     </div></div>
 
     <div class="card mb-3"><div class="card-body">
