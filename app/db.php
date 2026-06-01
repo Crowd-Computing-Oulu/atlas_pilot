@@ -201,4 +201,12 @@ function init_schema(SQLite3 $db): void {
     add_column_if_missing($db, 'coding_tasks', 'last_served_at', 'INTEGER');
     // Migration for DBs predating run-tracked LLM coding.
     add_column_if_missing($db, 'codings', 'run_id', 'INTEGER');
+    // At most one model coding per (run, task). Remove pre-index duplicates created by
+    // overlapping batch clicks (keeping the earliest), then enforce uniqueness so a
+    // double-submitted batch becomes a no-op instead of overshooting coverage.
+    // Human codings have run_id NULL (multiple raters per task) and are unaffected.
+    $db->exec("DELETE FROM codings WHERE run_id IS NOT NULL AND id NOT IN (
+                 SELECT MIN(id) FROM codings WHERE run_id IS NOT NULL GROUP BY run_id, task_id)");
+    $db->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_codings_run_task
+                 ON codings(run_id, task_id) WHERE run_id IS NOT NULL");
 }

@@ -251,7 +251,11 @@ if ($view === 'coding_run_code' && isset($_GET['run'])) {
     require_once __DIR__ . '/llm.php';
     $run = $db->querySingle("SELECT * FROM coding_runs WHERE id = " . (int)$_GET['run'], true);
     if (!$run) { header("Location: {$base_url}&view=coding"); exit; }
-    $budget = max(1, min(60, (int)($_GET['n'] ?? 10)));
+    $total = (int)$db->querySingle("SELECT COUNT(*) FROM coding_tasks");
+    $done = (int)$db->querySingle("SELECT COUNT(DISTINCT task_id) FROM codings WHERE run_id = " . (int)$run['id']);
+    $remaining = max(0, $total - $done);
+    // Clamp the requested batch to what is actually left, so the count can never overshoot.
+    $budget = max(1, min($remaining ?: 1, (int)($_GET['n'] ?? 10)));
     $coded = 0; $failed = 0;
     $sel = $db->prepare("SELECT t.id, t.text_content FROM coding_tasks t
                          WHERE NOT EXISTS (SELECT 1 FROM codings c WHERE c.task_id = t.id AND c.run_id = :rid)
@@ -264,7 +268,7 @@ if ($view === 'coding_run_code' && isset($_GET['run'])) {
     foreach ($pending as $row) {
         $parsed = analyse_practice($row['text_content'], $run['model'], $run['full_prompt'], $run['temperature']);
         if (!$parsed) { $failed++; continue; }
-        $ins = $db->prepare("INSERT INTO codings (task_id, source, run_id, technique, dosage, mode, technique_count, raw_llm_response)
+        $ins = $db->prepare("INSERT OR IGNORE INTO codings (task_id, source, run_id, technique, dosage, mode, technique_count, raw_llm_response)
                              VALUES (:tid, :src, :rid, :t, :d, :mo, :tc, :raw)");
         $ins->bindValue(':tid', (int)$row['id'], SQLITE3_INTEGER);
         $ins->bindValue(':src', $run['model'], SQLITE3_TEXT);
@@ -275,7 +279,7 @@ if ($view === 'coding_run_code' && isset($_GET['run'])) {
         $ins->bindValue(':tc', (int)($parsed['technique_count'] ?? 1), SQLITE3_INTEGER);
         $ins->bindValue(':raw', $parsed['_raw'] ?? null, SQLITE3_TEXT);
         $ins->execute();
-        $coded++;
+        if ($db->changes() > 0) $coded++;
     }
     header("Location: {$base_url}&view=coding&run_coded={$coded}&run_failed={$failed}");
     exit;
@@ -427,6 +431,7 @@ $page_title = 'ATLAS Admin';
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item" href="<?= $base_url ?>&view=export&table=codings"><strong>Ratings (codings) CSV</strong></a></li>
                     <li><a class="dropdown-item" href="<?= $base_url ?>&view=export&table=coding_tasks">Coding tasks CSV</a></li>
+                    <li><a class="dropdown-item" href="<?= $base_url ?>&view=export&table=coding_runs">Coding runs CSV <span class="text-muted small">(incl. full prompt)</span></a></li>
                     <li><hr class="dropdown-divider"></li>
                     <li><a class="dropdown-item" href="<?= $base_url ?>&view=download_db"><strong>Download SQLite DB</strong></a></li>
                 </ul>
@@ -895,7 +900,7 @@ $page_title = 'ATLAS Admin';
     $or_models = $or_cache['models'];
     $default_instructions = DEFAULT_CODING_INSTRUCTIONS;
     $output_contract = CODING_OUTPUT_CONTRACT;
-    $runs = fetch_all($db, "SELECT r.*, (SELECT COUNT(*) FROM codings c WHERE c.run_id=r.id) coded FROM coding_runs r ORDER BY r.id DESC");
+    $runs = fetch_all($db, "SELECT r.*, (SELECT COUNT(DISTINCT c.task_id) FROM codings c WHERE c.run_id=r.id) coded FROM coding_runs r ORDER BY r.id DESC");
     $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
     $app_base = rtrim(($config['app_base_url'] ?? '') ?: ($scheme . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')), '/');
     $sample = $db->querySingle("SELECT token FROM coding_tasks ORDER BY id LIMIT 1");
@@ -959,7 +964,7 @@ $page_title = 'ATLAS Admin';
                     </select>
                 </div>
                 <div class="col-md-3"><input class="form-control form-control-sm" name="model_free" placeholder="…or paste slug (overrides)"></div>
-                <div class="col-md-1"><input type="number" step="0.1" min="0" max="2" class="form-control form-control-sm" name="temperature" placeholder="temp" title="optional temperature (blank = provider default)"></div>
+                <div class="col-md-1"><input type="number" step="0.1" min="0" max="2" value="0" class="form-control form-control-sm" name="temperature" placeholder="temp" title="0 = deterministic, recommended for coding; blank = provider default"></div>
             </div>
             <label class="form-label small text-muted mt-2 mb-1">Instructions (editable; the JSON contract below is appended automatically)</label>
             <textarea class="form-control form-control-sm" name="instructions" rows="10" style="font-family:monospace;font-size:.8rem;"><?= htmlspecialchars($default_instructions) ?></textarea>
@@ -982,21 +987,29 @@ $page_title = 'ATLAS Admin';
             <tbody>
             <?php foreach ($runs as $run): $coded = (int)$run['coded']; $remaining = max(0, $ct_total - $coded); ?>
                 <tr<?= $run['status'] === 'archived' ? ' class="text-muted"' : '' ?>>
-                    <td><?= (int)$run['id'] ?></td>
-                    <td><?= htmlspecialchars($run['label'] ?? '—') ?></td>
+                    <td><a href="<?= $base_url ?>&view=coding_run_detail&run=<?= (int)$run['id'] ?>"><?= (int)$run['id'] ?></a></td>
+                    <td><a href="<?= $base_url ?>&view=coding_run_detail&run=<?= (int)$run['id'] ?>"><?= htmlspecialchars($run['label'] ?? '—') ?></a></td>
                     <td><code><?= htmlspecialchars($run['model']) ?></code></td>
                     <td><?= $run['temperature'] === null ? '—' : htmlspecialchars((string)$run['temperature']) ?></td>
                     <td><?= $coded ?> / <?= $ct_total ?> (<?= fmt_pct($coded, $ct_total) ?>)</td>
                     <td><?= htmlspecialchars($run['status']) ?></td>
                     <td>
                         <?php if ($run['status'] === 'active' && $remaining > 0): ?>
-                            <a href="<?= $base_url ?>&view=coding_run_code&run=<?= (int)$run['id'] ?>&n=10" class="btn btn-sm btn-outline-primary py-0">+10</a>
-                            <a href="<?= $base_url ?>&view=coding_run_code&run=<?= (int)$run['id'] ?>&n=40" class="btn btn-sm btn-outline-primary py-0">+40</a>
+                            <form method="get" action="admin.php" class="d-flex align-items-center gap-1" style="margin:0">
+                                <input type="hidden" name="key" value="<?= htmlspecialchars($key) ?>">
+                                <input type="hidden" name="view" value="coding_run_code">
+                                <input type="hidden" name="run" value="<?= (int)$run['id'] ?>">
+                                <input type="number" name="n" min="1" max="<?= $remaining ?>" value="<?= min($remaining, 40) ?>" class="form-control form-control-sm py-0" style="width:5rem" title="how many of the <?= $remaining ?> remaining tasks to code now (restartable; large batches may hit the request timeout, just click again)">
+                                <button class="btn btn-sm btn-outline-primary py-0" type="submit">Code</button>
+                            </form>
                         <?php elseif ($remaining === 0): ?><span class="badge bg-success">done</span><?php endif; ?>
                     </td>
                     <td>
                         <a href="<?= $base_url ?>&view=coding_run_archive&run=<?= (int)$run['id'] ?>" class="small text-decoration-none" title="Toggle archive"><?= $run['status'] === 'archived' ? 'unarchive' : 'archive' ?></a>
-                        &nbsp;<a href="<?= $base_url ?>&view=coding_run_delete&run=<?= (int)$run['id'] ?>" onclick="return confirm('Delete run #<?= (int)$run['id'] ?> and its <?= $coded ?> ratings?')" class="text-danger small text-decoration-none">delete</a>
+                        &nbsp;<span class="dz-del">
+                            <a href="#" class="text-danger small text-decoration-none" onclick="var w=this.parentNode;w.children[0].classList.add('d-none');w.children[1].classList.remove('d-none');return false;">delete</a>
+                            <span class="d-none small">sure? <a href="<?= $base_url ?>&view=coding_run_delete&run=<?= (int)$run['id'] ?>" class="text-danger fw-bold text-decoration-none">delete <?= $coded ?></a> &middot; <a href="#" class="text-muted text-decoration-none" onclick="var w=this.parentNode.parentNode;w.children[1].classList.add('d-none');w.children[0].classList.remove('d-none');return false;">cancel</a></span>
+                        </span>
                     </td>
                 </tr>
             <?php endforeach; ?>
@@ -1121,6 +1134,35 @@ $page_title = 'ATLAS Admin';
             <?php endforeach; ?>
             </tbody>
         </table>
+    <?php endif; ?>
+
+<?php elseif ($view === 'coding_run_detail'): ?>
+    <?php
+    $run = $db->querySingle("SELECT * FROM coding_runs WHERE id = " . (int)($_GET['run'] ?? 0), true);
+    $rcoded = $run ? (int)$db->querySingle("SELECT COUNT(DISTINCT task_id) FROM codings WHERE run_id = " . (int)$run['id']) : 0;
+    $rtotal = (int)$db->querySingle("SELECT COUNT(*) FROM coding_tasks");
+    ?>
+    <a href="<?= $base_url ?>&view=coding" class="small">&larr; back to coding</a>
+    <?php if (!$run): ?>
+        <p class="text-muted mt-2">Run not found.</p>
+    <?php else: ?>
+        <h5 class="mt-2">Coding run #<?= (int)$run['id'] ?> <span class="text-muted fw-normal"><?= htmlspecialchars($run['label'] ?? '—') ?></span></h5>
+        <table class="table table-sm w-auto">
+            <tr><td>Model</td><td><code><?= htmlspecialchars($run['model']) ?></code></td></tr>
+            <tr><td>Temperature</td><td><?= $run['temperature'] === null ? '— (provider default)' : htmlspecialchars((string)$run['temperature']) ?></td></tr>
+            <tr><td>Status</td><td><?= htmlspecialchars($run['status']) ?></td></tr>
+            <tr><td>Coverage</td><td><?= $rcoded ?> / <?= $rtotal ?> (<?= fmt_pct($rcoded, $rtotal) ?>)</td></tr>
+            <tr><td>Created</td><td class="text-muted"><?= htmlspecialchars($run['created_at']) ?></td></tr>
+        </table>
+        <h6 class="mt-3">Full prompt sent to the model <span class="text-muted small fw-normal">(read-only; exact string used to code every task in this run)</span></h6>
+        <pre class="bg-light p-2 small" style="white-space:pre-wrap;"><?= htmlspecialchars($run['full_prompt']) ?></pre>
+        <details class="mb-3">
+            <summary class="small text-muted">Show editable instructions and appended output contract separately</summary>
+            <h6 class="mt-2">Instructions (editable part)</h6>
+            <pre class="bg-light p-2 small" style="white-space:pre-wrap;"><?= htmlspecialchars($run['instructions']) ?></pre>
+            <h6 class="mt-2">Output contract (appended)</h6>
+            <pre class="bg-light p-2 small" style="white-space:pre-wrap;"><?= htmlspecialchars($run['output_contract']) ?></pre>
+        </details>
     <?php endif; ?>
 
 <?php endif; ?>
