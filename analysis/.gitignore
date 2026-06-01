@@ -1,0 +1,32 @@
+# Participant data is never committed (privacy; the dataset is released
+# separately on OSF/Zenodo with the paper). Recursive globs so files in
+# data/final_prod/ and data/_archive/ are covered too.
+data/**/*.csv
+data/**/*.db*
+data/**/*.sqlite
+data/*.csv
+data/*.db
+data/*.sqlite
+
+# Secret: OpenRouter key for local LLM coding (never commit)
+coding/.openrouter_key
+
+# Notebooks are local research artifacts, not committed (only the engine is)
+*.qmd
+*.rmarkdown
+
+# Run logs and coding-side CSVs (the latter carry task URLs / tokens)
+coding/*.log
+coding/*.csv
+
+# Rendered output and caches
+*.html
+/figures/*.png
+/figures/*.pdf
+/.quarto/
+/_site/
+/_freeze/
+*_files/
+.DS_Store
+
+**/*.quarto_ipynb
