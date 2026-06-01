@@ -915,6 +915,8 @@ $page_title = 'ATLAS Admin';
             </div>
         </div>
 
+        <p class="small text-muted">A <strong>coding task</strong> is one blinded description to be rated on the T/D/M rubric. <strong>Seed tasks</strong> scans the completed participants currently in the database and builds one task per description (C1/C2: one text each; C3: first and final snapshots), skipping a small pilot test-ID list; it is idempotent, so re-clicking only adds tasks for new participants and never touches existing tasks or their ratings. <strong>All task URLs (CSV)</strong> downloads every task's rater URL, and <strong>Test coding</strong> opens the rater screen in no-write preview.</p>
+
         <table class="table table-sm w-auto">
             <tr><td>Total coding tasks</td><td><strong><?= $ct_total ?></strong></td></tr>
             <tr><td>Tasks with ≥1 human rating</td><td><?= $h1 ?> / <?= $ct_total ?> (<?= fmt_pct($h1, $ct_total) ?>)</td></tr>
@@ -942,6 +944,7 @@ $page_title = 'ATLAS Admin';
             <h6 class="mb-0">New LLM coding run</h6>
             <a href="<?= $base_url ?>&view=openrouter_refresh" class="btn btn-sm btn-outline-secondary">Refresh model list<?= $or_cache['fetched_at'] ? ' (' . count($or_models) . ' cached)' : '' ?></a>
         </div>
+        <p class="small text-muted mb-2">A <strong>run</strong> is one LLM coder: a model, an editable prompt, and an optional temperature (low = more repeatable; blank = provider default). <strong>Create run</strong> only saves this configuration, it does not code anything yet, so a new run starts at 0 coverage. You then code the tasks in batches with the <strong>+10 / +40</strong> buttons in the Coding runs list below.</p>
         <?php if (isset($_GET['run_err'])): ?><div class="alert alert-warning">Pick or paste a model slug.</div><?php endif; ?>
         <?php if (isset($_GET['or_refreshed'])): ?><div class="alert alert-info"><?= (int)$_GET['or_refreshed'] ? 'Model list refreshed (' . (int)$_GET['or_refreshed'] . ').' : 'Refresh failed; free-text slug still works.' ?></div><?php endif; ?>
         <form method="post" action="<?= $base_url ?>&view=coding_run_create">
@@ -970,6 +973,7 @@ $page_title = 'ATLAS Admin';
     <?php if (isset($_GET['run_created'])): ?><div class="alert alert-success">Run #<?= (int)$_GET['run_created'] ?> created.</div><?php endif; ?>
     <div class="card mb-3"><div class="card-body">
         <h6>Coding runs</h6>
+        <p class="small text-muted mb-2">Each run codes the <em>same</em> tasks the human raters see, writing into the <em>same</em> <code>codings</code> table but tagged with the run's id and the model name, so model ratings never mix with the human ones or with each other. Create several runs to compare models or prompts on identical tasks. <strong>Coverage</strong> is how many of the <?= $ct_total ?> tasks this run has coded so far; <strong>+10 / +40</strong> code the next batch (restartable), <strong>archive</strong> hides a finished run, <strong>delete</strong> removes a run and its ratings.</p>
         <?php if (!$runs): ?>
             <p class="text-muted small mb-0">No runs yet. Create one above.</p>
         <?php else: ?>
