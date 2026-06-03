@@ -52,8 +52,14 @@ $is_test = ($_SESSION['source'] ?? '') === 'test';
 $fill = !empty($_SESSION['fill']);
 $syn = $fill ? synthetic_preview() : [];
 
-// Calculate progress for progress bar
-$steps_order = ['consent', 'intake', 'input', 'refinement', 'fidelity', 'exploratory', 'debrief'];
+// Calculate progress for progress bar. The description step is `input` for C1/C2
+// and `refinement` for C3; without a condition-specific list those occupy different
+// indices and C3 reads as further along at the same stage. Use one list per
+// condition so the description step sits at the same position for everyone.
+$cond = (int)($_SESSION['condition'] ?? $_SESSION['forced_condition'] ?? 0);
+$steps_order = $cond === 3
+    ? ['consent', 'intake', 'refinement', 'fidelity', 'exploratory', 'debrief']
+    : ['consent', 'intake', 'input', 'fidelity', 'exploratory', 'debrief'];
 $current_index = array_search($step, $steps_order);
 $total_steps = count($steps_order);
 $progress = $current_index !== false ? (($current_index) / ($total_steps - 1)) * 100 : 0;
