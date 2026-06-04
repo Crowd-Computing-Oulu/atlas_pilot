@@ -101,7 +101,7 @@ if ($fill && $desc === '') {
 // who sees a cue sees the same words. The LLM's raw hint field is still
 // captured in raw_llm_response for later inspection.
 $dims = [
-    'technique' => ['title' => 'What you do',  'states' => [0 => 'not mentioned', 1 => 'general type', 2 => 'named',            3 => 'detailed'], 'hint' => 'Try naming what exactly you do.'],
+    'technique' => ['title' => 'What exactly you do',  'states' => [0 => 'not mentioned', 1 => 'general type', 2 => 'named',            3 => 'detailed'], 'hint' => 'Try naming what exactly you do.'],
     'dosage'    => ['title' => 'How much',     'states' => [0 => 'not mentioned', 1 => 'vague',        2 => 'partly specified', 3 => 'detailed'], 'hint' => 'Try adding how much.'],
     'mode'      => ['title' => 'In what way',  'states' => [0 => 'not mentioned', 1 => 'general',      2 => 'specified',        3 => 'detailed'], 'hint' => 'Try adding in what way.'],
 ];
