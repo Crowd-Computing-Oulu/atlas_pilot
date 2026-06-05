@@ -30,3 +30,7 @@ coding/*.csv
 .DS_Store
 
 **/*.quarto_ipynb
+
+# Any CSV at the analysis root is participant data / author worksheets (e.g.
+# distortion_authorcoding.csv: distortion free-text + age + gender). Never commit.
+/*.csv

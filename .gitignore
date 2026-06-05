@@ -31,3 +31,6 @@ app/config.php
 .claude/
 .mcp.json
 .playwright-mcp/
+
+# scholark reports/logs (added by Scholark)
+.scholark/

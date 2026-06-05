@@ -1,0 +1,41 @@
+project:
+  type: website
+  output-dir: _site
+  render:
+    - "index.qmd"
+    - "0*.qmd"
+
+# freeze: store each notebook's computed results under _freeze/ and only re-execute
+# a notebook when its own source changes. This lets a reviewer rebuild the whole site
+# without re-running the expensive technique-embedding step (04) or needing the API key.
+execute:
+  freeze: auto
+
+website:
+  title: "ATLAS Pilot analysis"
+  reader-mode: true
+  page-navigation: true
+  sidebar:
+    style: docked
+    search: true
+    contents:
+      - text: "Overview"
+        file: index.qmd
+      - section: "Pipeline (run in order)"
+        contents:
+          - 00_export.qmd
+          - 01_participants.qmd
+          - 02_self_reports.qmd
+          - 03_coding.qmd
+          - 04_embeddings.qmd
+          - 05_context_outcome.qmd
+          - 06_llm_coding.qmd
+          - 07_inter_rater_reliability.qmd
+          - 08_demographics_distress.qmd
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+    code-fold: true
+    code-tools: true
